@@ -12,7 +12,7 @@ let playerName = localStorage.getItem('olympia_player_name') || '';
 let isLocked = true;
 let isMuteBuzzer = false;
 let isMuteChat = false;
-let hasBuzzed = false; // Kiểm tra đã bấm chuông lượt này chưa
+let hasBuzzed = false;
 
 const userDisplay = document.getElementById('userDisplay');
 const playerNameDisplay = document.getElementById('playerNameDisplay');
@@ -27,7 +27,7 @@ if (!playerName) {
   registerPlayer();
 }
 
-// 2. Đăng ký Thí Sinh vào Firebase (Lưu thời điểm gia nhập joinedAt)
+// 2. Đăng ký Thí Sinh vào Firebase
 function registerPlayer() {
   if (!playerName) return;
 
@@ -46,7 +46,7 @@ function registerPlayer() {
       db.ref(`players/${playerId}`).update({
         name: playerName,
         lastOnline: Date.now(),
-        joinedAt: existingData.joinedAt || Date.now(), // Lưu mốc thời gian vào phòng lần đầu
+        joinedAt: existingData.joinedAt || Date.now(),
         kicked: false
       });
 
@@ -59,7 +59,7 @@ function registerPlayer() {
   });
 }
 
-// 3. Lắng nghe trạng thái Thí Sinh
+// 3. Lắng nghe trạng thái & Điểm số từ Firebase Realtime
 function listenToPlayerState() {
   db.ref(`players/${playerId}`).off();
 
@@ -94,6 +94,7 @@ function listenToPlayerState() {
     isMuteBuzzer = data.muteBuzzer ?? false;
     isMuteChat = data.muteChat ?? false;
 
+    // Cập nhật điểm lập tức khi score_editor.html thay đổi
     if (playerScoreDisplay) {
       playerScoreDisplay.innerText = data.score !== undefined ? data.score : 0;
     }
@@ -190,7 +191,7 @@ function submitAnswer() {
   input.value = '';
 }
 
-// 7. Lắng nghe danh sách chuông & Phát âm thanh đồng bộ
+// 7. Lắng nghe danh sách chuông Realtime
 let playerFirstLoad = true;
 let playerPrevBuzzerCount = 0;
 
@@ -198,7 +199,6 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const queue = document.getElementById('buzzerQueue');
   const currentCount = snapshot.numChildren();
 
-  // Cập nhật trạng thái đã bấm chuông chưa
   hasBuzzed = snapshot.exists() && snapshot.hasChild(playerId);
   updateBuzzerUI();
 
@@ -212,7 +212,6 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
     return;
   }
 
-  // Phát tiếng chuông cho tất cả các thiết bị khi có lượt bấm mới
   if (!playerFirstLoad && currentCount > playerPrevBuzzerCount) {
     buzzerAudio.currentTime = 0;
     buzzerAudio.play().catch(e => console.warn('Cần chạm màn hình 1 lần để bật âm thanh:', e));
