@@ -4,16 +4,18 @@
 const ADMIN_PASSWORD = "20032006";
 
 function checkAuth() {
-  const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
+  const isAuthenticated = sessionStorage.getItem('olympia_admin_auth') === 'true';
   const authModal = document.getElementById('authModal');
   const adminContent = document.getElementById('adminContent');
 
+  if (!authModal || !adminContent) return;
+
   if (isAuthenticated) {
-    if (authModal) authModal.classList.add('hidden');
-    if (adminContent) adminContent.classList.remove('hidden');
+    authModal.style.display = 'none';
+    adminContent.style.display = 'block';
   } else {
-    if (authModal) authModal.classList.remove('hidden');
-    if (adminContent) adminContent.classList.add('hidden');
+    authModal.style.display = 'flex';
+    adminContent.style.display = 'none';
   }
 }
 
@@ -23,7 +25,7 @@ function loginAdmin() {
   const val = pwdInput ? pwdInput.value.trim() : '';
 
   if (val === ADMIN_PASSWORD) {
-    sessionStorage.setItem('admin_authenticated', 'true');
+    sessionStorage.setItem('olympia_admin_auth', 'true');
     if (errNotice) errNotice.innerText = '';
     if (pwdInput) pwdInput.value = '';
     checkAuth();
@@ -33,12 +35,12 @@ function loginAdmin() {
 }
 
 function logoutAdmin() {
-  sessionStorage.removeItem('admin_authenticated');
+  sessionStorage.removeItem('olympia_admin_auth');
   checkAuth();
 }
 
-// Kiếm tra đăng nhập ngay khi mở trang
-document.addEventListener('DOMContentLoaded', checkAuth);
+// Chạy kiểm tra đăng nhập ngay lập tức khi nạp file JS
+checkAuth();
 
 
 // ================= 2. QUẢN LÝ TRẠNG THÁI CHUÔNG =================
@@ -141,7 +143,7 @@ db.ref('players').on('value', (snapshot) => {
     const key = child.key;
     const p = child.val();
 
-    if (p.kicked) return; // Bỏ qua thí sinh đã bị đuổi
+    if (p.kicked) return;
 
     total++;
     const row = document.createElement('tr');
