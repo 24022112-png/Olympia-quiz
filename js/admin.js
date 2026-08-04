@@ -2,12 +2,6 @@
 const ADMIN_PASSWORD = "20032006";
 const adminBuzzerAudio = new Audio('sound/buzzer.mp3');
 
-// Tham chiếu CSV ngầm từ Google Sheet
-const SHEET_ID = '1ngiCqrQWG_2Mz93NtBoRP2bDm3DtYmZSX0VnlOqMplQ';
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
-
-let sheetSyncInterval = null;
-
 document.addEventListener("DOMContentLoaded", () => {
   initAuthCheck();
 });
@@ -23,7 +17,6 @@ function initAuthCheck() {
     app.innerHTML = "";
     app.appendChild(template.content.cloneNode(true));
     startFirebaseListeners();
-    startGoogleSheetSync();
   } else {
     if (loginModal) loginModal.classList.remove("hidden");
   }
@@ -44,65 +37,8 @@ function handleAdminLogin() {
 }
 
 function adminLogout() {
-  if (sheetSyncInterval) clearInterval(sheetSyncInterval);
   sessionStorage.removeItem("olympia_admin_auth");
   window.location.reload();
-}
-
-// ĐỌC B6:F6 TỪ GOOGLE SHEET VÀ ĐẨY THẲNG LÊN FIREBASE CHO THÍ SINH
-async function syncScoresFromGoogleSheet() {
-  try {
-    const res = await fetch(`${CSV_URL}&_t=${Date.now()}`);
-    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-
-    const text = await res.text();
-    const lines = text.split(/\r?\n/).map(line => line.split(',').map(cell => cell.replace(/^"|"$/g, '').trim()));
-
-    const row6 = lines[5] || [];
-    const sheetScores = row6.slice(1, 6).map(val => {
-      const num = Number(val);
-      return isNaN(num) ? 0 : num;
-    });
-
-    const snapshot = await db.ref('players').once('value');
-    if (!snapshot.exists()) return;
-
-    const playersData = snapshot.val();
-    const sortedPlayers = Object.keys(playersData)
-      .map(key => ({ key, ...playersData[key] }))
-      .filter(p => !p.kicked)
-      .sort((a, b) => (a.joinedAt || a.lastOnline || 0) - (b.joinedAt || b.lastOnline || 0));
-
-    sortedPlayers.forEach((player, index) => {
-      if (index < sheetScores.length) {
-        const targetScore = sheetScores[index];
-        if (player.score !== targetScore) {
-          db.ref(`players/${player.key}/score`).set(targetScore);
-        }
-      }
-    });
-
-    const sheetStatus = document.getElementById('sheetSyncStatus');
-    if (sheetStatus) {
-      const now = new Date().toLocaleTimeString();
-      sheetStatus.innerText = `🟢 Đã tham chiếu B6:F6 [${sheetScores.join(', ')}] lúc ${now}`;
-      sheetStatus.className = "text-[11px] text-emerald-400 font-mono mt-1 font-bold";
-    }
-
-  } catch (err) {
-    console.error('Lỗi lấy điểm Sheet:', err);
-    const sheetStatus = document.getElementById('sheetSyncStatus');
-    if (sheetStatus) {
-      sheetStatus.innerText = '🔴 Lỗi đọc Google Sheet!';
-      sheetStatus.className = "text-[11px] text-red-400 font-mono mt-1 font-bold";
-    }
-  }
-}
-
-function startGoogleSheetSync() {
-  syncScoresFromGoogleSheet();
-  if (sheetSyncInterval) clearInterval(sheetSyncInterval);
-  sheetSyncInterval = setInterval(syncScoresFromGoogleSheet, 2000);
 }
 
 function startFirebaseListeners() {
@@ -168,13 +104,13 @@ function startFirebaseListeners() {
     if (countBadge) countBadge.innerText = String(rank - 1);
   });
 
-  // 4. Bảng Thí sinh (Tự động đè tiêu đề bảng HTML để gỡ bỏ cột ĐIỂM)
+  // 4. Bảng Thí sinh (Hiển thị danh sách & Quản lý Quyền)
   db.ref('players').on('value', (snapshot) => {
     const tbody = document.getElementById('playerTableBody');
     const countBadge = document.getElementById('playerCount');
     if (!tbody) return;
 
-    // Ép tiêu đề bảng chỉ gồm 4 cột, xóa bỏ cột ĐIỂM
+    // Tự động đảm bảo giao diện tiêu đề 4 cột
     const table = tbody.closest('table');
     if (table) {
       let thead = table.querySelector('thead');
@@ -260,7 +196,7 @@ function startFirebaseListeners() {
   });
 }
 
-// Thao tác Admin
+// Các hàm thao tác Admin
 function setBuzzerLock(status) { db.ref('settings/locked').set(status); }
 function clearBuzzers() { db.ref('buzzers').remove(); }
 function clearAnswers() { db.ref('answers').remove(); }
