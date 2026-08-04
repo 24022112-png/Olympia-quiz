@@ -1,7 +1,10 @@
 let isLocked = true;
+let maxPlayers = 0;
 const pageLoadTime = Date.now();
 
-// Phát âm thanh chuông từ thư mục sound/buzzer.mp3
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1ngiCqrQWG_2Mz93NtBoRP2bDm3DtYmZSX0VnlOqMplQ/export?format=csv&gid=0';
+
+// Phát âm thanh chuông
 function playBuzzerSound() {
   const audio = new Audio('sound/buzzer.mp3');
   audio.currentTime = 0;
@@ -20,6 +23,19 @@ db.ref('settings/locked').on('value', (snapshot) => {
     ? 'btn-action py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded uppercase tracking-wider text-sm transition shadow-lg shadow-emerald-900/50' 
     : 'btn-action py-3 bg-red-600 hover:bg-red-500 font-extrabold rounded uppercase tracking-wider text-sm transition shadow-lg shadow-red-900/50';
 });
+
+// Cấu hình Giới hạn người chơi
+db.ref('settings/maxPlayers').on('value', (snapshot) => {
+  maxPlayers = snapshot.val() || 0;
+  const input = document.getElementById('maxPlayersInput');
+  if (input) input.value = maxPlayers;
+});
+
+function setMaxPlayers() {
+  const val = parseInt(document.getElementById('maxPlayersInput').value) || 0;
+  db.ref('settings/maxPlayers').set(val);
+  alert(`Đã cập nhật giới hạn số người chơi: ${val === 0 ? 'Không giới hạn' : val + ' người'}`);
+}
 
 function clearBuzzers() {
   db.ref('buzzers').remove();
@@ -67,7 +83,7 @@ db.ref('players').on('value', (snapshot) => {
 
   const players = snapshot.val();
   const playerKeys = Object.keys(players);
-  countSpan.innerText = `${playerKeys.length} Thí sinh`;
+  countSpan.innerText = `${playerKeys.length}${maxPlayers > 0 ? '/' + maxPlayers : ''} Thí sinh`;
 
   playerKeys.forEach((key) => {
     const p = players[key];
@@ -113,7 +129,7 @@ db.ref('players').on('value', (snapshot) => {
   });
 });
 
-// Lắng nghe tiếng chuông Realtime để phát âm thanh
+// Lắng nghe tiếng chuông Realtime
 db.ref('buzzers').on('child_added', (snapshot) => {
   const data = snapshot.val();
   if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
@@ -147,7 +163,7 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// Lắng nghe TẤT CẢ câu trả lời
+// Lắng nghe câu trả lời
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('adminAnswerList');
   list.innerHTML = '';
@@ -172,3 +188,63 @@ db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
     list.appendChild(item);
   });
 });
+
+// --- BẢNG XẾP HẠNG GOOGLE SHEET CHO ADMIN ---
+async function loadAdminLeaderboard() {
+  const container = document.getElementById('leaderboardBody');
+  if (!container) return;
+
+  try {
+    const res = await fetch(SHEET_CSV_URL + '&t=' + Date.now());
+    const csvText = await res.text();
+    
+    const rows = csvText.split('\n').map(row => 
+      row.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1').trim())
+    );
+
+    if (rows.length < 6) return;
+
+    const headers = rows[0];
+    const teams = [];
+
+    for (let col = 1; col < headers.length; col++) {
+      const name = headers[col];
+      if (!name) continue;
+
+      const khoiDong = parseInt(rows[1][col]) || 0;
+      const vcnv = parseInt(rows[2][col]) || 0;
+      const tangToc = parseInt(rows[3][col]) || 0;
+      const veDich = parseInt(rows[4][col]) || 0;
+      const tongDiem = parseInt(rows[5][col]) || 0;
+
+      teams.push({ name, khoiDong, vcnv, tangToc, veDich, tongDiem });
+    }
+
+    teams.sort((a, b) => b.tongDiem - a.tongDiem);
+
+    container.innerHTML = '';
+    teams.forEach((team, index) => {
+      const isTop1 = index === 0;
+      const tr = document.createElement('tr');
+      tr.className = isTop1 
+        ? 'bg-yellow-950/60 border-b border-yellow-500/50 text-yellow-300 font-bold' 
+        : 'border-b border-slate-800 hover:bg-slate-800/50';
+
+      tr.innerHTML = `
+        <td class="p-2 text-center">${index + 1} ${isTop1 ? '👑' : ''}</td>
+        <td class="p-2 font-semibold text-left">${team.name}</td>
+        <td class="p-2 text-center text-slate-300">${team.khoiDong}</td>
+        <td class="p-2 text-center text-slate-300">${team.vcnv}</td>
+        <td class="p-2 text-center text-slate-300">${team.tangToc}</td>
+        <td class="p-2 text-center text-slate-300">${team.veDich}</td>
+        <td class="p-2 text-center font-bold text-emerald-400 text-base">${team.tongDiem}</td>
+      `;
+      container.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("Lỗi cập nhật bảng điểm Admin:", err);
+  }
+}
+
+loadAdminLeaderboard();
+setInterval(loadAdminLeaderboard, 10000);
