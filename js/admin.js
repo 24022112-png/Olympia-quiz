@@ -1,4 +1,32 @@
 let isLocked = true;
+const pageLoadTime = Date.now();
+
+// Hàm phát tiếng chuông ở trang Admin
+function playBuzzerSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
+
+    gain.gain.setValueAtTime(0.8, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch (e) {
+    console.log("Audio play blocked or unsupported:", e);
+  }
+}
 
 function toggleLock() {
   db.ref('settings/locked').set(!isLocked);
@@ -9,8 +37,8 @@ db.ref('settings/locked').on('value', (snapshot) => {
   const btn = document.getElementById('toggleLockBtn');
   btn.innerText = isLocked ? 'MỞ KHÓA CHUÔNG' : 'KHÓA CHUÔNG';
   btn.className = isLocked 
-    ? 'py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded uppercase tracking-wider text-sm transition' 
-    : 'py-3 bg-red-600 hover:bg-red-500 font-extrabold rounded uppercase tracking-wider text-sm transition';
+    ? 'btn-action py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded uppercase tracking-wider text-sm transition shadow-lg shadow-emerald-900/50' 
+    : 'btn-action py-3 bg-red-600 hover:bg-red-500 font-extrabold rounded uppercase tracking-wider text-sm transition shadow-lg shadow-red-900/50';
 });
 
 function clearBuzzers() {
@@ -20,6 +48,14 @@ function clearBuzzers() {
 function clearAnswers() {
   db.ref('answers').remove();
 }
+
+// Lắng nghe tiếng chuông Realtime khi thí sinh nhấn
+db.ref('buzzers').on('child_added', (snapshot) => {
+  const data = snapshot.val();
+  if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
+    playBuzzerSound();
+  }
+});
 
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('adminBuzzerList');
