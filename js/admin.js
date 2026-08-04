@@ -2,7 +2,8 @@ let isLocked = true;
 let maxPlayers = 0;
 const pageLoadTime = Date.now();
 
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1ngiCqrQWG_2Mz93NtBoRP2bDm3DtYmZSX0VnlOqMplQ/export?format=csv&gid=0';
+// URL Web App Google Apps Script lưu trong localStorage
+let webAppUrl = localStorage.getItem('olympia_script_url') || '';
 
 // Phát âm thanh chuông
 function playBuzzerSound() {
@@ -20,8 +21,8 @@ db.ref('settings/locked').on('value', (snapshot) => {
   const btn = document.getElementById('toggleLockBtn');
   btn.innerText = isLocked ? 'MỞ KHÓA CHUÔNG' : 'KHÓA CHUÔNG';
   btn.className = isLocked 
-    ? 'btn-action py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded uppercase tracking-wider text-sm transition shadow-lg shadow-emerald-900/50' 
-    : 'btn-action py-3 bg-red-600 hover:bg-red-500 font-extrabold rounded uppercase tracking-wider text-sm transition shadow-lg shadow-red-900/50';
+    ? 'btn-action py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded-lg uppercase tracking-wider text-sm transition shadow-lg shadow-emerald-900/50' 
+    : 'btn-action py-3 bg-red-600 hover:bg-red-500 font-extrabold rounded-lg uppercase tracking-wider text-sm transition shadow-lg shadow-red-900/50';
 });
 
 // Cấu hình Giới hạn người chơi
@@ -189,62 +190,122 @@ db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// --- BẢNG XẾP HẠNG GOOGLE SHEET CHO ADMIN ---
-async function loadAdminLeaderboard() {
-  const container = document.getElementById('leaderboardBody');
-  if (!container) return;
+// --- CHỨC NĂNG XỬ LÝ KẾT NỐI VÀ CHỈNH SỬA GOOGLE SHEET ---
+
+// Lưu Web App URL
+function saveWebAppUrl() {
+  const url = document.getElementById('webAppUrlInput').value.trim();
+  if (!url) return alert('Vui lòng nhập Web App URL!');
+  webAppUrl = url;
+  localStorage.setItem('olympia_script_url', webAppUrl);
+  alert('Đã lưu Web App URL thành công!');
+  fetchSheetData();
+}
+
+// Khởi tạo các ô nhập tên nhóm
+function renderGroupInputs(groups = []) {
+  const container = document.getElementById('groupInputsContainer');
+  container.innerHTML = '';
+
+  const count = Math.max(groups.length, 5); // Mặc định hiển thị ít nhất 5 nhóm
+  for (let i = 0; i < count; i++) {
+    const colLetter = String.fromCharCode(66 + i); // B, C, D, E, F...
+    const name = groups[i] ? groups[i].name : `Nhóm ${i + 1}`;
+
+    const div = document.createElement('div');
+    div.className = 'flex flex-col gap-1';
+    div.innerHTML = `
+      <label class="text-[11px] text-slate-400 font-mono font-bold">Ô ${colLetter}1:</label>
+      <input type="text" value="${name}" class="group-name-input bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-yellow-500">
+    `;
+    container.appendChild(div);
+  }
+}
+
+// Thêm 1 ô nhập nhóm
+function addGroupInput() {
+  const container = document.getElementById('groupInputsContainer');
+  const count = container.children.length;
+  const colLetter = String.fromCharCode(66 + count);
+
+  const div = document.createElement('div');
+  div.className = 'flex flex-col gap-1';
+  div.innerHTML = `
+    <label class="text-[11px] text-slate-400 font-mono font-bold">Ô ${colLetter}1:</label>
+    <input type="text" value="Nhóm ${count + 1}" class="group-name-input bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-yellow-500">
+  `;
+  container.appendChild(div);
+}
+
+// Đọc dữ liệu từ Google Sheet (Lấy ô B1, C1... và B6, C6...)
+async function fetchSheetData() {
+  if (!webAppUrl) return;
+
+  const tableBody = document.getElementById('leaderboardBody');
+  tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3 text-slate-400">Đang tải dữ liệu từ Google Sheet...</td></tr>';
 
   try {
-    const res = await fetch(SHEET_CSV_URL + '&t=' + Date.now());
-    const csvText = await res.text();
-    
-    const rows = csvText.split('\n').map(row => 
-      row.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1').trim())
-    );
+    const res = await fetch(webAppUrl);
+    const data = await res.json(); // Mảng [{colLetter: 'B', name: 'Nhóm 1', total: 100}, ...]
 
-    if (rows.length < 6) return;
+    renderGroupInputs(data);
 
-    const headers = rows[0];
-    const teams = [];
+    // Sắp xếp danh sách theo Tổng điểm (Hàng 6) giảm dần
+    const sortedData = [...data].sort((a, b) => b.total - a.total);
 
-    for (let col = 1; col < headers.length; col++) {
-      const name = headers[col];
-      if (!name) continue;
-
-      const khoiDong = parseInt(rows[1][col]) || 0;
-      const vcnv = parseInt(rows[2][col]) || 0;
-      const tangToc = parseInt(rows[3][col]) || 0;
-      const veDich = parseInt(rows[4][col]) || 0;
-      const tongDiem = parseInt(rows[5][col]) || 0;
-
-      teams.push({ name, khoiDong, vcnv, tangToc, veDich, tongDiem });
-    }
-
-    teams.sort((a, b) => b.tongDiem - a.tongDiem);
-
-    container.innerHTML = '';
-    teams.forEach((team, index) => {
-      const isTop1 = index === 0;
+    tableBody.innerHTML = '';
+    sortedData.forEach((item, index) => {
+      const isTop1 = index === 0 && item.total > 0;
       const tr = document.createElement('tr');
       tr.className = isTop1 
         ? 'bg-yellow-950/60 border-b border-yellow-500/50 text-yellow-300 font-bold' 
         : 'border-b border-slate-800 hover:bg-slate-800/50';
 
       tr.innerHTML = `
-        <td class="p-2 text-center">${index + 1} ${isTop1 ? '👑' : ''}</td>
-        <td class="p-2 font-semibold text-left">${team.name}</td>
-        <td class="p-2 text-center text-slate-300">${team.khoiDong}</td>
-        <td class="p-2 text-center text-slate-300">${team.vcnv}</td>
-        <td class="p-2 text-center text-slate-300">${team.tangToc}</td>
-        <td class="p-2 text-center text-slate-300">${team.veDich}</td>
-        <td class="p-2 text-center font-bold text-emerald-400 text-base">${team.tongDiem}</td>
+        <td class="p-3 text-center">${index + 1} ${isTop1 ? '👑' : ''}</td>
+        <td class="p-3 font-semibold text-slate-100">${item.name}</td>
+        <td class="p-3 text-center text-slate-400 font-mono">Ô ${item.colLetter}1 / Ô ${item.colLetter}6</td>
+        <td class="p-3 text-center font-bold text-emerald-400 text-base">${item.total}</td>
       `;
-      container.appendChild(tr);
+      tableBody.appendChild(tr);
     });
+
   } catch (err) {
-    console.error("Lỗi cập nhật bảng điểm Admin:", err);
+    console.error("Lỗi đọc Google Sheet:", err);
+    tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3 text-red-400 font-bold">Lỗi kết nối Web App URL! Vui lòng kiểm tra lại URL.</td></tr>';
   }
 }
 
-loadAdminLeaderboard();
-setInterval(loadAdminLeaderboard, 10000);
+// Ghi dữ liệu Tên nhóm vào các ô B1, C1, D1... trên Google Sheet
+async function updateSheetGroupNames() {
+  if (!webAppUrl) return alert('Vui lòng lưu Web App URL trước!');
+
+  const inputs = document.querySelectorAll('.group-name-input');
+  const groupNames = Array.from(inputs).map(input => input.value.trim());
+
+  try {
+    await fetch(webAppUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupNames })
+    });
+
+    alert('Đã gửi yêu cầu cập nhật tên nhóm (B1, C1, D1...) lên Google Sheet!');
+    setTimeout(fetchSheetData, 1500); // Tải lại bảng điểm sau 1.5s
+  } catch (err) {
+    console.error("Lỗi cập nhật tên nhóm:", err);
+    alert('Không thể cập nhật tên nhóm. Kiểm tra lại Web App URL!');
+  }
+}
+
+// Khởi tạo trang
+if (webAppUrl) {
+  document.getElementById('webAppUrlInput').value = webAppUrl;
+  fetchSheetData();
+} else {
+  renderGroupInputs();
+}
+
+// Tự động làm mới điểm mỗi 10 giây
+setInterval(fetchSheetData, 10000);
