@@ -22,6 +22,16 @@
     </div>
   </div>
 
+  <!-- MODAL BỊ ĐUỔI KHỎI PHÒNG -->
+  <div id="kickedModal" class="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 hidden">
+    <div class="olympia-card p-8 max-w-md w-full text-center space-y-4 border-2 border-red-600 bg-red-950/80">
+      <div class="text-5xl">🚫</div>
+      <h2 class="text-2xl font-black text-red-500 uppercase tracking-widest">BẠN ĐÃ BỊ ĐUỔI</h2>
+      <p class="text-slate-200 text-sm">Quản trị viên đã đuổi bạn khỏi phòng chơi này.</p>
+      <button onclick="location.reload()" class="btn-action w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded uppercase tracking-wider transition">Tải Lại Trang</button>
+    </div>
+  </div>
+
   <!-- HEADER -->
   <header class="max-w-5xl mx-auto w-full flex justify-between items-center bg-slate-950/80 p-4 rounded-xl border border-yellow-600/50 mb-6">
     <div class="flex items-center gap-3">
@@ -46,24 +56,25 @@
         <div>
           <h3 class="text-lg font-bold text-yellow-400 uppercase mb-3 tracking-wider">Nhập Câu Trả Lời</h3>
           <textarea id="answerInput" rows="4" placeholder="Gõ câu trả lời của bạn tại đây..." class="w-full p-3 bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-yellow-500 text-sm"></textarea>
+          <span id="chatNotice" class="text-xs text-slate-400 mt-1 block"></span>
         </div>
-        <button onclick="submitAnswer()" class="btn-action w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded uppercase tracking-wider transition">Gửi Đến Admin</button>
+        <button id="sendBtn" onclick="submitAnswer()" class="btn-action w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded uppercase tracking-wider transition">Gửi Đến Admin</button>
       </section>
     </div>
 
     <!-- HIỂN THỊ REALTIME -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <section class="olympia-card p-4">
-        <h4 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Thứ Tự Bấm Chuông</h4>
+        <h4 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Thứ Tự Bấm Chuông (Công Khai)</h4>
         <ol id="buzzerQueue" class="space-y-2 text-sm min-h-[100px]">
           <li class="text-slate-500 italic">Chưa có ai bấm chuông...</li>
         </ol>
       </section>
 
       <section class="olympia-card p-4">
-        <h4 class="font-bold text-emerald-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Danh Sách Đáp Án Đã Gửi</h4>
+        <h4 class="font-bold text-emerald-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Tin Nhắn Của Bạn</h4>
         <div id="answerStream" class="space-y-2 text-sm max-h-56 overflow-y-auto">
-          <p class="text-slate-500 italic">Chưa có câu trả lời nào...</p>
+          <p class="text-slate-500 italic">Chưa có câu trả lời nào của bạn...</p>
         </div>
       </section>
     </div>
