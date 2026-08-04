@@ -1,18 +1,20 @@
 // js/firebase-config.js
+
+// 1. Cấu hình Firebase của bạn
 const firebaseConfig = {
-  apiKey: "AIzaSy...",
-  authDomain: "du-an-cua-ban.firebaseapp.com",
-  databaseURL: "https://du-an-cua-ban-default-rtdb.firebaseio.com", // BẮT BUỘC PHẢI CÓ DÒNG NÀY
-  projectId: "du-an-cua-ban",
-  storageBucket: "du-an-cua-ban.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
-// Khởi tạo Firebase nếu chưa khởi tạo
+// 2. Khởi tạo Firebase
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
-// Khai báo biến db toàn cục dùng cho cả Admin và Player
+// 3. Khởi tạo Database Reference
 const db = firebase.database();
