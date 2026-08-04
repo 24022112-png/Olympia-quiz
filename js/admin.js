@@ -2,7 +2,7 @@
 const ADMIN_PASSWORD = "20032006";
 const adminBuzzerAudio = new Audio('sound/buzzer.mp3');
 
-// Cấu hình Google Sheet tham chiếu điểm
+// Cấu hình Google Sheet tham chiếu điểm (B6:F6)
 const SHEET_ID = '1ngiCqrQWG_2Mz93NtBoRP2bDm3DtYmZSX0VnlOqMplQ';
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&range=B5:F6`;
 
@@ -23,7 +23,7 @@ function initAuthCheck() {
     app.innerHTML = "";
     app.appendChild(template.content.cloneNode(true));
     startFirebaseListeners();
-    startGoogleSheetSync(); // Bắt đầu tự động đọc điểm từ Google Sheet
+    startGoogleSheetSync();
   } else {
     if (loginModal) loginModal.classList.remove("hidden");
   }
@@ -49,7 +49,7 @@ function adminLogout() {
   window.location.reload();
 }
 
-// HÀM ĐỒNG BỘ ĐIỂM TỪ GOOGLE SHEET (Ô B6 -> F6)
+// HÀM ĐỒNG BỘ ĐIỂM DUY NHẤT TỪ GOOGLE SHEET (Ô B6 -> F6)
 async function syncScoresFromGoogleSheet() {
   try {
     const res = await fetch(SHEET_URL);
@@ -63,16 +63,13 @@ async function syncScoresFromGoogleSheet() {
     let sheetNames = [];
     let sheetScores = [];
 
-    // Nếu đọc dải B5:F6 -> Hàng 0 là Tên (B5:F5), Hàng 1 là Điểm (B6:F6)
     if (rows.length >= 2) {
       sheetNames = rows[0].c ? rows[0].c.map(cell => cell ? String(cell.v || '').trim() : '') : [];
       sheetScores = rows[1].c ? rows[1].c.map(cell => cell ? Number(cell.v || 0) : 0) : [];
     } else {
-      // Nếu chỉ có 1 hàng B6:F6
       sheetScores = rows[0].c ? rows[0].c.map(cell => cell ? Number(cell.v || 0) : 0) : [];
     }
 
-    // Lấy danh sách thí sinh từ Firebase
     const snapshot = await db.ref('players').once('value');
     if (!snapshot.exists()) return;
 
@@ -85,7 +82,7 @@ async function syncScoresFromGoogleSheet() {
 
       let newScore = null;
 
-      // 1. Ưu tiên khớp điểm theo Tên thí sinh (nếu hàng B5:F5 có điền tên)
+      // 1. Khớp theo Tên nếu hàng B5:F5 có điền tên
       if (sheetNames.length > 0) {
         const matchIndex = sheetNames.findIndex(n => n && n.toLowerCase() === (player.name || '').trim().toLowerCase());
         if (matchIndex !== -1) {
@@ -93,12 +90,11 @@ async function syncScoresFromGoogleSheet() {
         }
       }
 
-      // 2. Nếu không trùng tên, khớp theo thứ tự vào phòng (B6=Thí sinh 1, C6=Thí sinh 2, D6=Thí sinh 3, E6=Thí sinh 4, F6=Thí sinh 5)
+      // 2. Khớp theo thứ tự B6 (Người 1), C6 (Người 2), D6 (Người 3), E6 (Người 4), F6 (Người 5)
       if (newScore === null && index < sheetScores.length) {
         newScore = sheetScores[index];
       }
 
-      // Cập nhật điểm lên Firebase nếu có sự thay đổi
       if (newScore !== null && !isNaN(newScore) && player.score !== newScore) {
         db.ref(`players/${key}/score`).set(newScore);
       }
@@ -107,22 +103,22 @@ async function syncScoresFromGoogleSheet() {
     const sheetStatus = document.getElementById('sheetSyncStatus');
     if (sheetStatus) {
       const now = new Date().toTimeString().split(' ')[0];
-      sheetStatus.innerText = `🟢 Đã đồng bộ Google Sheet B6:F6 lúc ${now}`;
+      sheetStatus.innerText = `🟢 Điểm đang tham chiếu trực tiếp từ Google Sheet B6:F6 (Cập nhật: ${now})`;
     }
 
   } catch (err) {
     console.warn('Lỗi lấy dữ liệu từ Google Sheet:', err);
     const sheetStatus = document.getElementById('sheetSyncStatus');
     if (sheetStatus) {
-      sheetStatus.innerText = '🔴 Lỗi kết nối Google Sheet (Kiểm tra quyền truy cập link)';
+      sheetStatus.innerText = '🔴 Không thể đọc Google Sheet. Hãy kiểm tra lại quyền Chia sẻ!';
     }
   }
 }
 
 function startGoogleSheetSync() {
-  syncScoresFromGoogleSheet(); // Chạy ngay lần đầu
+  syncScoresFromGoogleSheet();
   if (sheetSyncInterval) clearInterval(sheetSyncInterval);
-  sheetSyncInterval = setInterval(syncScoresFromGoogleSheet, 3000); // Tự động cập nhật mỗi 3 giây
+  sheetSyncInterval = setInterval(syncScoresFromGoogleSheet, 2000); // Tự động đọc lại mỗi 2 giây
 }
 
 function startFirebaseListeners() {
@@ -168,7 +164,7 @@ function startFirebaseListeners() {
 
     if (!adminFirstLoad && currentCount > adminPrevBuzzerCount) {
       adminBuzzerAudio.currentTime = 0;
-      adminBuzzerAudio.play().catch(e => console.warn('Bấm trang Admin 1 lần để bật tiếng:', e));
+      adminBuzzerAudio.play().catch(e => console.warn('Click Admin để bật âm thanh:', e));
     }
     adminPrevBuzzerCount = currentCount;
     adminFirstLoad = false;
@@ -188,7 +184,7 @@ function startFirebaseListeners() {
     if (countBadge) countBadge.innerText = String(rank - 1);
   });
 
-  // 4. Bảng Thí sinh & Điểm số (Được đồng bộ từ Google Sheet)
+  // 4. Bảng Thí sinh (Chỉ hiển thị điểm đọc từ Sheet - Không còn nút chỉnh tay)
   db.ref('players').on('value', (snapshot) => {
     const tbody = document.getElementById('playerTableBody');
     const countBadge = document.getElementById('playerCount');
@@ -196,7 +192,7 @@ function startFirebaseListeners() {
     tbody.innerHTML = '';
 
     if (!snapshot.exists()) {
-      tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-500 italic">Chưa có thí sinh nào vào phòng...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-500 italic">Chưa có thí sinh nào vào phòng...</td></tr>';
       if (countBadge) countBadge.innerText = '0 thí sinh';
       return;
     }
@@ -214,10 +210,8 @@ function startFirebaseListeners() {
       row.innerHTML = `
         <td class="p-2 font-semibold text-slate-200">${escapeHtml(p.name)}</td>
         
-        <td class="p-2 text-center flex items-center justify-center gap-1">
-          <button onclick="updateScore('${key}', ${currentScore - 10})" class="bg-slate-700 hover:bg-slate-600 px-1.5 rounded text-white">-</button>
-          <span class="font-black text-amber-400 w-12 text-sm">${currentScore}</span>
-          <button onclick="updateScore('${key}', ${currentScore + 10})" class="bg-slate-700 hover:bg-slate-600 px-1.5 rounded text-white">+</button>
+        <td class="p-2 text-center">
+          <span class="font-black text-amber-400 text-sm">${currentScore}</span>
         </td>
 
         <td class="p-2 text-center">
@@ -259,12 +253,11 @@ function startFirebaseListeners() {
   });
 }
 
-// Điều khiển Admin
+// Các hàm điều khiển Admin
 function setBuzzerLock(status) { db.ref('settings/locked').set(status); }
 function clearBuzzers() { db.ref('buzzers').remove(); }
 function clearAnswers() { db.ref('answers').remove(); }
 function updateMaxPlayers() { db.ref('settings/maxPlayers').set(parseInt(document.getElementById('maxPlayersInput').value) || 0); alert('Đã cập nhật!'); }
-function updateScore(id, newScore) { db.ref(`players/${id}/score`).set(newScore); }
 function toggleMuteBuzzer(id, status) { db.ref(`players/${id}/muteBuzzer`).set(status); }
 function toggleMuteChat(id, status) { db.ref(`players/${id}/muteChat`).set(status); }
 function kickPlayer(id) {
