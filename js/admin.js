@@ -1,54 +1,4 @@
-// js/admin.js
-
-const ADMIN_PASSWORD = "20032006";
-
-// 1. Kiểm tra trạng thái xác thực ngay khi tải trang
-function initAuthCheck() {
-  const isAuth = sessionStorage.getItem('olympia_admin_logged') === 'true';
-  if (isAuth) {
-    renderAdminPanel();
-  }
-}
-
-// 2. Hàm đăng nhập
-function loginAdmin() {
-  const input = document.getElementById('adminPasswordInput');
-  const errNotice = document.getElementById('authErrorNotice');
-  const val = input ? input.value.trim() : '';
-
-  if (val === ADMIN_PASSWORD) {
-    sessionStorage.setItem('olympia_admin_logged', 'true');
-    renderAdminPanel();
-  } else {
-    if (errNotice) errNotice.innerText = '❌ Mật khẩu không chính xác!';
-  }
-}
-
-// 3. Hàm đăng xuất
-function logoutAdmin() {
-  sessionStorage.removeItem('olympia_admin_logged');
-  location.reload(); // Nạp lại trang để quay về màn hình đăng nhập
-}
-
-// 4. Render giao diện Admin & Lắng nghe Firebase
-function renderAdminPanel() {
-  const template = document.getElementById('adminTemplate');
-  const body = document.getElementById('appBody');
-
-  if (template && body) {
-    // Thay thế toàn bộ body bằng giao diện Admin
-    body.className = "bg-slate-950 text-slate-100 min-h-screen p-4 md:p-6 pb-12";
-    body.innerHTML = template.innerHTML;
-
-    // Bắt đầu kết nối Realtime Firebase
-    startFirebaseListeners();
-  }
-}
-
-// 5. Khởi tạo các Lắng nghe Firebase sau khi đăng nhập thành công
 function startFirebaseListeners() {
-
-  // A. Trạng thái Khóa/Mở Chuông
   db.ref('settings/locked').on('value', (snapshot) => {
     const isLocked = snapshot.val() ?? true;
     const badge = document.getElementById('statusBadge');
@@ -63,50 +13,51 @@ function startFirebaseListeners() {
     }
   });
 
-  // B. Giới hạn Thí sinh
   db.ref('settings/maxPlayers').on('value', (snapshot) => {
-    const max = snapshot.val() || 0;
     const input = document.getElementById('maxPlayersInput');
-    if (input) input.value = max;
+    if (input) input.value = snapshot.val() || 0;
   });
 
-  // C. Danh sách Chuông Bấm
+  // ÂM THANH & Danh sách Chuông Admin
+  let adminFirstLoad = true;
+  let adminPrevBuzzerCount = 0;
+
   db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
     const list = document.getElementById('adminBuzzerList');
     const countBadge = document.getElementById('buzzerCount');
     if (!list) return;
     list.innerHTML = '';
+    const currentCount = snapshot.numChildren();
 
     if (!snapshot.exists()) {
       list.innerHTML = '<li class="text-slate-500 italic text-xs">Chưa có tín hiệu chuông nào...</li>';
-      if (countBadge) countBadge.innerText = '0';
+      if(countBadge) countBadge.innerText = '0';
+      adminPrevBuzzerCount = 0;
+      adminFirstLoad = false;
       return;
     }
+
+    if (!adminFirstLoad && currentCount > adminPrevBuzzerCount) {
+      new Audio('sound/buzzer.mp3').play().catch(e => console.warn('Bị chặn Audio:', e));
+    }
+    adminPrevBuzzerCount = currentCount;
+    adminFirstLoad = false;
 
     let rank = 1;
     snapshot.forEach((child) => {
       const data = child.val();
       const date = new Date(data.timestamp || Date.now());
       const timeStr = date.toTimeString().split(' ')[0] + '.' + String(date.getMilliseconds()).padStart(3, '0');
-
       const item = document.createElement('li');
-      item.className = `p-2.5 rounded-lg border text-xs flex justify-between items-center ${
-        rank === 1 
-          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' 
-          : 'bg-slate-950 border-slate-800 text-slate-300'
-      }`;
-      item.innerHTML = `
-        <span>#${rank} - <strong>${escapeHtml(data.name)}</strong></span>
-        <span class="text-[10px] text-slate-500">${timeStr}</span>
-      `;
+      item.className = `p-2.5 rounded-lg border text-xs flex justify-between items-center ${rank === 1 ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-300'}`;
+      item.innerHTML = `<span>#${rank} - <strong>${escapeHtml(data.name)}</strong></span><span class="text-[10px] text-slate-500">${timeStr}</span>`;
       list.appendChild(item);
       rank++;
     });
-
-    if (countBadge) countBadge.innerText = String(rank - 1);
+    if(countBadge) countBadge.innerText = String(rank - 1);
   });
 
-  // D. Danh sách Thí sinh
+  // Quản lý Thí Sinh (Thêm chức năng Cộng/Trừ điểm)
   db.ref('players').on('value', (snapshot) => {
     const tbody = document.getElementById('playerTableBody');
     const countBadge = document.getElementById('playerCount');
@@ -114,8 +65,8 @@ function startFirebaseListeners() {
     tbody.innerHTML = '';
 
     if (!snapshot.exists()) {
-      tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-500 italic">Chưa có thí sinh nào vào phòng...</td></tr>';
-      if (countBadge) countBadge.innerText = '0 thí sinh';
+      tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-500 italic">Chưa có thí sinh nào vào phòng...</td></tr>';
+      if(countBadge) countBadge.innerText = '0 thí sinh';
       return;
     }
 
@@ -123,105 +74,79 @@ function startFirebaseListeners() {
     snapshot.forEach((child) => {
       const key = child.key;
       const p = child.val();
-
-      if (p.kicked) return;
+      if (p.kicked) return; // Ẩn những người đã bị đuổi khỏi bảng
 
       total++;
+      const currentScore = p.score || 0;
       const row = document.createElement('tr');
       row.className = 'hover:bg-slate-800/50 transition';
       row.innerHTML = `
         <td class="p-2 font-semibold text-slate-200">${escapeHtml(p.name)}</td>
+        
+        <!-- Ô ĐIỀU CHỈNH ĐIỂM SỐ -->
+        <td class="p-2 text-center flex items-center justify-center gap-1">
+          <button onclick="updateScore('${key}', ${currentScore - 10})" class="bg-slate-700 hover:bg-slate-600 px-1.5 rounded text-white">-</button>
+          <span class="font-black text-amber-400 w-8">${currentScore}</span>
+          <button onclick="updateScore('${key}', ${currentScore + 10})" class="bg-slate-700 hover:bg-slate-600 px-1.5 rounded text-white">+</button>
+        </td>
+
         <td class="p-2 text-center">
-          <button onclick="toggleMuteBuzzer('${key}', ${!p.muteBuzzer})" 
-            class="px-2 py-1 rounded text-[10px] font-bold ${p.muteBuzzer ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'}">
+          <button onclick="toggleMuteBuzzer('${key}', ${!p.muteBuzzer})" class="px-2 py-1 rounded text-[10px] font-bold ${p.muteBuzzer ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'}">
             ${p.muteBuzzer ? '🔇 Đã Cấm' : '🔔 Bình Thường'}
           </button>
         </td>
         <td class="p-2 text-center">
-          <button onclick="toggleMuteChat('${key}', ${!p.muteChat})" 
-            class="px-2 py-1 rounded text-[10px] font-bold ${p.muteChat ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'}">
+          <button onclick="toggleMuteChat('${key}', ${!p.muteChat})" class="px-2 py-1 rounded text-[10px] font-bold ${p.muteChat ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'}">
             ${p.muteChat ? '🔇 Đã Cấm' : '💬 Bình Thường'}
           </button>
         </td>
         <td class="p-2 text-center">
-          <button onclick="kickPlayer('${key}')" class="bg-red-600/80 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded transition">
-            ❌ Đuổi
-          </button>
+          <button onclick="kickPlayer('${key}')" class="bg-red-600/80 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded transition">❌</button>
         </td>
       `;
       tbody.appendChild(row);
     });
-
-    if (countBadge) countBadge.innerText = `${total} thí sinh`;
+    if(countBadge) countBadge.innerText = `${total} thí sinh`;
   });
 
-  // E. Luồng Câu trả lời
   db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
     const stream = document.getElementById('adminAnswerStream');
     if (!stream) return;
     stream.innerHTML = '';
-
     if (!snapshot.exists()) {
       stream.innerHTML = '<p class="text-slate-500 italic text-xs">Chưa có câu trả lời nào...</p>';
       return;
     }
-
     snapshot.forEach((child) => {
       const data = child.val();
-      const date = new Date(data.timestamp || Date.now());
-      const timeStr = date.toTimeString().split(' ')[0];
-
+      const timeStr = new Date(data.timestamp || Date.now()).toTimeString().split(' ')[0];
       const item = document.createElement('div');
       item.className = 'p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs flex justify-between items-start gap-2';
-      item.innerHTML = `
-        <div>
-          <span class="font-bold text-amber-400">${escapeHtml(data.name)}:</span>
-          <span class="text-slate-200 ml-1">${escapeHtml(data.text)}</span>
-        </div>
-        <span class="text-[10px] text-slate-500 whitespace-nowrap">${timeStr}</span>
-      `;
+      item.innerHTML = `<div><span class="font-bold text-amber-400">${escapeHtml(data.name)}:</span><span class="text-slate-200 ml-1">${escapeHtml(data.text)}</span></div><span class="text-[10px] text-slate-500 whitespace-nowrap">${timeStr}</span>`;
       stream.prepend(item);
     });
   });
 }
 
-// 6. Các thao tác Admin
-function setBuzzerLock(status) {
-  db.ref('settings/locked').set(status);
+function setBuzzerLock(status) { db.ref('settings/locked').set(status); }
+function clearBuzzers() { db.ref('buzzers').remove(); }
+function clearAnswers() { db.ref('answers').remove(); }
+function updateMaxPlayers() { db.ref('settings/maxPlayers').set(parseInt(document.getElementById('maxPlayersInput').value) || 0); alert('Đã cập nhật!'); }
+
+// Hàm Cập nhật điểm cho Thí sinh
+function updateScore(id, newScore) {
+  db.ref(`players/${id}/score`).set(newScore);
 }
 
-function clearBuzzers() {
-  db.ref('buzzers').remove();
-}
+function toggleMuteBuzzer(id, status) { db.ref(`players/${id}/muteBuzzer`).set(status); }
+function toggleMuteChat(id, status) { db.ref(`players/${id}/muteChat`).set(status); }
 
-function clearAnswers() {
-  db.ref('answers').remove();
-}
-
-function updateMaxPlayers() {
-  const input = document.getElementById('maxPlayersInput');
-  const val = parseInt(input.value) || 0;
-  db.ref('settings/maxPlayers').set(val);
-  alert('Đã cập nhật số lượng thí sinh tối đa!');
-}
-
-function toggleMuteBuzzer(id, status) {
-  db.ref(`players/${id}/muteBuzzer`).set(status);
-}
-
-function toggleMuteChat(id, status) {
-  db.ref(`players/${id}/muteChat`).set(status);
-}
-
+// Hàm Đuổi người chơi (Set cờ kicked)
 function kickPlayer(id) {
-  if (confirm('Bạn có chắc chắn muốn đuổi thí sinh này khỏi phòng?')) {
+  if (confirm('Bạn có chắc chắn muốn mời thí sinh này ra khỏi phòng? (Họ sẽ bị đẩy về màn hình nhập tên)')) {
     db.ref(`players/${id}/kicked`).set(true);
   }
 }
 
-function escapeHtml(str) {
-  return String(str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-// Kiểm tra phiên đăng nhập ngay khi file JS được nạp
+function escapeHtml(str) { return String(str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 initAuthCheck();
