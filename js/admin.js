@@ -1,7 +1,7 @@
 let isLocked = true;
 const pageLoadTime = Date.now();
 
-// Hàm phát tiếng chuông ở trang Admin
+// Phát tiếng chuông ở màn hình Admin khi có thí sinh bấm
 function playBuzzerSound() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -49,7 +49,7 @@ function clearAnswers() {
   db.ref('answers').remove();
 }
 
-// Lắng nghe tiếng chuông Realtime khi thí sinh nhấn
+// Lắng nghe tín hiệu chuông Realtime để phát âm thanh ở màn hình Admin
 db.ref('buzzers').on('child_added', (snapshot) => {
   const data = snapshot.val();
   if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
