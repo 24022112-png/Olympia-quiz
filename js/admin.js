@@ -1,31 +1,11 @@
 let isLocked = true;
 const pageLoadTime = Date.now();
 
-// Phát tiếng chuông ở màn hình Admin khi có thí sinh bấm
+// Phát âm thanh chuông từ file MP3 trong thư mục sound/
 function playBuzzerSound() {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
-
-    gain.gain.setValueAtTime(0.8, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    osc.stop(ctx.currentTime + 0.5);
-  } catch (e) {
-    console.log("Audio play blocked or unsupported:", e);
-  }
+  const audio = new Audio('sound/buzzer.mp3');
+  audio.currentTime = 0;
+  audio.play().catch(e => console.log("Không thể phát âm thanh:", e));
 }
 
 function toggleLock() {
@@ -55,7 +35,6 @@ function resetAllPlayers() {
   }
 }
 
-// CÁC QUYỀN CỦA ADMIN VỚI TỪNG THÍ SINH
 function toggleMuteBuzzer(pId, currentVal) {
   db.ref(`players/${pId}/muteBuzzer`).set(!currentVal);
 }
@@ -74,7 +53,7 @@ function unkickPlayer(pId) {
   db.ref(`players/${pId}/kicked`).set(false);
 }
 
-// QUẢN LÝ THÍ SINH REALTIME
+// Quản lý thí sinh Realtime
 db.ref('players').on('value', (snapshot) => {
   const container = document.getElementById('playerList');
   const countSpan = document.getElementById('playerCount');
@@ -134,7 +113,7 @@ db.ref('players').on('value', (snapshot) => {
   });
 });
 
-// Lắng nghe tiếng chuông Realtime để phát âm thanh ở màn hình Admin
+// Lắng nghe tiếng chuông Realtime để phát âm thanh
 db.ref('buzzers').on('child_added', (snapshot) => {
   const data = snapshot.val();
   if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
@@ -168,7 +147,7 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// Lắng nghe TẤT CẢ câu trả lời (ĐẶC QUYỀN ADMIN XEM TOÀN BỘ)
+// Lắng nghe TẤT CẢ câu trả lời
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('adminAnswerList');
   list.innerHTML = '';
