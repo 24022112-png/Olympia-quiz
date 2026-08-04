@@ -12,7 +12,7 @@ let playerName = localStorage.getItem('olympia_player_name') || '';
 let isLocked = true;
 let isMuteBuzzer = false;
 let isMuteChat = false;
-let hasBuzzed = false; // Biến kiểm tra thí sinh đã bấm chuông trong lượt này chưa
+let hasBuzzed = false; // Kiểm tra đã bấm chuông lượt này chưa
 
 const userDisplay = document.getElementById('userDisplay');
 const playerNameDisplay = document.getElementById('playerNameDisplay');
@@ -27,7 +27,7 @@ if (!playerName) {
   registerPlayer();
 }
 
-// 2. Đăng ký Thí Sinh vào Firebase
+// 2. Đăng ký Thí Sinh vào Firebase (Lưu thời điểm gia nhập joinedAt)
 function registerPlayer() {
   if (!playerName) return;
 
@@ -41,13 +41,16 @@ function registerPlayer() {
         return;
       }
 
+      const existingData = players[playerId] || {};
+
       db.ref(`players/${playerId}`).update({
         name: playerName,
         lastOnline: Date.now(),
+        joinedAt: existingData.joinedAt || Date.now(), // Lưu mốc thời gian vào phòng lần đầu
         kicked: false
       });
 
-      if (!players[playerId] || players[playerId].score === undefined) {
+      if (existingData.score === undefined) {
         db.ref(`players/${playerId}/score`).set(0);
       }
 
@@ -56,7 +59,7 @@ function registerPlayer() {
   });
 }
 
-// 3. Lắng nghe Trạng thái Thí Sinh (KICK 1 LẦN VĂNG RA NHẬP TÊN LẠI)
+// 3. Lắng nghe trạng thái Thí Sinh
 function listenToPlayerState() {
   db.ref(`players/${playerId}`).off();
 
@@ -64,7 +67,7 @@ function listenToPlayerState() {
     const data = snapshot.val();
     if (!data) return;
 
-    // XỬ LÝ KICK 1 LẦN
+    // Xử lý khi bị Admin kick
     if (data.kicked === true) {
       db.ref(`players/${playerId}`).off();
       db.ref(`players/${playerId}`).remove();
@@ -100,7 +103,7 @@ function listenToPlayerState() {
   });
 }
 
-// 4. Lưu Tên & Đổi Tên
+// 4. Lưu & Đổi tên
 function saveNickname() {
   const input = document.getElementById('nicknameInput');
   const val = input ? input.value.trim() : '';
@@ -119,7 +122,7 @@ function changeNickname() {
   document.getElementById('nicknameModal').classList.remove('hidden');
 }
 
-// 5. Khóa/Mở Chuông từ Admin
+// 5. Cập nhật giao diện nút chuông
 db.ref('settings/locked').on('value', (snapshot) => {
   isLocked = snapshot.val() ?? true;
   updateBuzzerUI();
@@ -164,7 +167,7 @@ function updateChatUI() {
   }
 }
 
-// 6. THAO TÁC BẤM CHUÔNG (Chỉ cho phép bấm khi chưa từng bấm lượt này)
+// 6. Thao tác bấm chuông
 function triggerBuzzer() {
   if (isLocked || isMuteBuzzer || hasBuzzed) return;
 
@@ -187,7 +190,7 @@ function submitAnswer() {
   input.value = '';
 }
 
-// 7. BẢNG CHUÔNG REALTIME & PHÁT ÂM THANH TOÀN HỆ THỐNG
+// 7. Lắng nghe danh sách chuông & Phát âm thanh đồng bộ
 let playerFirstLoad = true;
 let playerPrevBuzzerCount = 0;
 
@@ -195,7 +198,7 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const queue = document.getElementById('buzzerQueue');
   const currentCount = snapshot.numChildren();
 
-  // Kiểm tra xem ID của mình đã có trên Firebase chưa
+  // Cập nhật trạng thái đã bấm chuông chưa
   hasBuzzed = snapshot.exists() && snapshot.hasChild(playerId);
   updateBuzzerUI();
 
@@ -209,10 +212,10 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
     return;
   }
 
-  // PHÁT ÂM THANH CHUÔNG CHO TẤT CẢ NGƯỜI CHƠI KHI CÓ NGƯỜI MỚI BẤM
+  // Phát tiếng chuông cho tất cả các thiết bị khi có lượt bấm mới
   if (!playerFirstLoad && currentCount > playerPrevBuzzerCount) {
     buzzerAudio.currentTime = 0;
-    buzzerAudio.play().catch(e => console.warn('Cần click vị trí bất kỳ trên màn hình để bật âm thanh:', e));
+    buzzerAudio.play().catch(e => console.warn('Cần chạm màn hình 1 lần để bật âm thanh:', e));
   }
   playerPrevBuzzerCount = currentCount;
   playerFirstLoad = false;
