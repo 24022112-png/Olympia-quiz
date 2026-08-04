@@ -1,7 +1,7 @@
-// Mật khẩu Admin cố định
+// Mật khẩu Admin
 const ADMIN_PASSWORD = "20032006";
+const adminBuzzerAudio = new Audio('sound/buzzer.mp3');
 
-// Kiểm tra quyền đăng nhập khi tải trang
 document.addEventListener("DOMContentLoaded", () => {
   initAuthCheck();
 });
@@ -42,7 +42,7 @@ function adminLogout() {
 }
 
 function startFirebaseListeners() {
-  // Lắng nghe Trạng thái Khóa/Mở chuông
+  // 1. Trạng thái Khóa/Mở chuông
   db.ref('settings/locked').on('value', (snapshot) => {
     const isLocked = snapshot.val() ?? true;
     const badge = document.getElementById('statusBadge');
@@ -57,13 +57,13 @@ function startFirebaseListeners() {
     }
   });
 
-  // Lắng nghe Giới hạn người chơi
+  // 2. Giới hạn số thí sinh
   db.ref('settings/maxPlayers').on('value', (snapshot) => {
     const input = document.getElementById('maxPlayersInput');
     if (input) input.value = snapshot.val() || 0;
   });
 
-  // Lắng nghe Danh sách Bấm chuông Realtime + Âm thanh
+  // 3. Danh sách chuông bấm + Phát âm thanh buzzer.mp3 phía Admin
   let adminFirstLoad = true;
   let adminPrevBuzzerCount = 0;
 
@@ -71,7 +71,7 @@ function startFirebaseListeners() {
     const list = document.getElementById('adminBuzzerList');
     const countBadge = document.getElementById('buzzerCount');
     if (!list) return;
-    list.innerHTML = '';
+
     const currentCount = snapshot.numChildren();
 
     if (!snapshot.exists()) {
@@ -83,11 +83,13 @@ function startFirebaseListeners() {
     }
 
     if (!adminFirstLoad && currentCount > adminPrevBuzzerCount) {
-      new Audio('sound/buzzer.mp3').play().catch(e => console.warn('Bị chặn Audio:', e));
+      adminBuzzerAudio.currentTime = 0;
+      adminBuzzerAudio.play().catch(e => console.warn('Cần click trang Admin 1 lần để bật tiếng:', e));
     }
     adminPrevBuzzerCount = currentCount;
     adminFirstLoad = false;
 
+    list.innerHTML = '';
     let rank = 1;
     snapshot.forEach((child) => {
       const data = child.val();
@@ -102,7 +104,7 @@ function startFirebaseListeners() {
     if (countBadge) countBadge.innerText = String(rank - 1);
   });
 
-  // Lắng nghe Quản lý Thí Sinh (Điểm, Cấm, Đuổi)
+  // 4. Quản lý Thí sinh & Điểm số
   db.ref('players').on('value', (snapshot) => {
     const tbody = document.getElementById('playerTableBody');
     const countBadge = document.getElementById('playerCount');
@@ -153,7 +155,7 @@ function startFirebaseListeners() {
     if (countBadge) countBadge.innerText = `${total} thí sinh`;
   });
 
-  // Lắng nghe Câu Trả Lời Realtime
+  // 5. Nhật ký câu trả lời Realtime
   db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
     const stream = document.getElementById('adminAnswerStream');
     if (!stream) return;
@@ -173,7 +175,7 @@ function startFirebaseListeners() {
   });
 }
 
-// Các hàm thao tác điều khiển Admin
+// Các hàm thao tác Admin
 function setBuzzerLock(status) { db.ref('settings/locked').set(status); }
 function clearBuzzers() { db.ref('buzzers').remove(); }
 function clearAnswers() { db.ref('answers').remove(); }
@@ -182,7 +184,7 @@ function updateScore(id, newScore) { db.ref(`players/${id}/score`).set(newScore)
 function toggleMuteBuzzer(id, status) { db.ref(`players/${id}/muteBuzzer`).set(status); }
 function toggleMuteChat(id, status) { db.ref(`players/${id}/muteChat`).set(status); }
 function kickPlayer(id) {
-  if (confirm('Mời thí sinh này ra khỏi phòng?')) {
+  if (confirm('Đuổi thí sinh này ra màn hình đăng nhập lại?')) {
     db.ref(`players/${id}/kicked`).set(true);
   }
 }
