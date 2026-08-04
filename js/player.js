@@ -1,5 +1,35 @@
 let nickname = localStorage.getItem('olympia_nickname') || '';
 let isLocked = true;
+let hasBuzzedInCurrentCycle = false;
+let previousLockState = true;
+const pageLoadTime = Date.now();
+
+// Phát tiếng chuông bằng Web Audio API
+function playBuzzerSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
+
+    gain.gain.setValueAtTime(0.8, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch (e) {
+    console.log("Audio play blocked or unsupported:", e);
+  }
+}
 
 if (nickname) {
   document.getElementById('nicknameModal').classList.add('hidden');
@@ -20,10 +50,13 @@ function changeNickname() {
   document.getElementById('nicknameModal').classList.remove('hidden');
 }
 
-// Bấm chuông
 function triggerBuzzer() {
   if (isLocked) return alert('Chuông đang bị khóa bởi Admin!');
+  if (hasBuzzedInCurrentCycle) return alert('Bạn đã bấm chuông trong lượt này rồi!');
   if (!nickname) return;
+
+  hasBuzzedInCurrentCycle = true;
+  updateBuzzerButtonState();
 
   db.ref('buzzers').push({
     name: nickname,
@@ -31,7 +64,6 @@ function triggerBuzzer() {
   });
 }
 
-// Gửi câu trả lời
 function submitAnswer() {
   const text = document.getElementById('answerInput').value.trim();
   if (!text) return alert('Vui lòng nhập nội dung câu trả lời!');
@@ -45,16 +77,47 @@ function submitAnswer() {
   document.getElementById('answerInput').value = '';
 }
 
-// Trạng thái Khóa / Mở Chuông
-db.ref('settings/locked').on('value', (snapshot) => {
-  isLocked = snapshot.val() ?? true;
+function updateBuzzerButtonState() {
   const btn = document.getElementById('buzzerBtn');
   const notice = document.getElementById('buzzerNotice');
-  btn.disabled = isLocked;
-  notice.innerText = isLocked ? 'Chuông hiện đang bị KHÓA' : 'Chuông SẴN SÀNG! Bấm ngay!';
+
+  if (isLocked) {
+    btn.disabled = true;
+    notice.innerText = 'Chuông hiện đang bị KHÓA';
+    notice.className = 'mt-4 text-xs text-slate-400';
+  } else if (hasBuzzedInCurrentCycle) {
+    btn.disabled = true;
+    notice.innerText = 'Bạn đã bấm chuông lượt này! Chờ Admin mở lượt mới...';
+    notice.className = 'mt-4 text-xs text-yellow-400 font-bold';
+  } else {
+    btn.disabled = false;
+    notice.innerText = 'Chuông SẴN SÀNG! Bấm ngay!';
+    notice.className = 'mt-4 text-xs text-emerald-400 font-bold animate-pulse';
+  }
+}
+
+// Lắng nghe trạng thái Khóa/Mở từ Admin
+db.ref('settings/locked').on('value', (snapshot) => {
+  const newLockState = snapshot.val() ?? true;
+
+  // Khi Admin chuyển từ Khóa (true) sang Mở (false) -> reset lượt bấm
+  if (previousLockState === true && newLockState === false) {
+    hasBuzzedInCurrentCycle = false;
+  }
+
+  isLocked = newLockState;
+  previousLockState = newLockState;
+  updateBuzzerButtonState();
 });
 
-// Sắp xếp thứ tự bấm chuông theo thời gian
+// Lắng nghe tín hiệu chuông Realtime để phát âm thanh ở tất cả các máy thí sinh
+db.ref('buzzers').on('child_added', (snapshot) => {
+  const data = snapshot.val();
+  if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
+    playBuzzerSound();
+  }
+});
+
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('buzzerQueue');
   list.innerHTML = '';
@@ -80,7 +143,6 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// Sắp xếp đáp án theo thời gian gửi
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('answerStream');
   list.innerHTML = '';
