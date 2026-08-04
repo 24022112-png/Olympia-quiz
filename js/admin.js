@@ -37,8 +37,13 @@ function setMaxPlayers() {
   alert(`Đã cập nhật giới hạn người chơi: ${val === 0 ? 'Không giới hạn' : val + ' người'}`);
 }
 
-function clearBuzzers() { db.ref('buzzers').remove(); }
-function clearAnswers() { db.ref('answers').remove(); }
+// HÀM RESET LƯỢT: TỰ ĐỘNG KHÓA CHUÔNG + XÓA DANH SÁCH BẤM CHUÔNG & CÂU TRẢ LỜI
+function resetRound() {
+  db.ref('settings/locked').set(true);
+  db.ref('buzzers').remove();
+  db.ref('answers').remove();
+}
+
 function resetAllPlayers() {
   if (confirm('Bạn có chắc chắn muốn xóa toàn bộ thí sinh?')) {
     db.ref('players').remove();
