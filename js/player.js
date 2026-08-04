@@ -12,6 +12,7 @@ let playerName = localStorage.getItem('olympia_player_name') || '';
 let isLocked = true;
 let isMuteBuzzer = false;
 let isMuteChat = false;
+let hasBuzzed = false; // Biến kiểm tra thí sinh đã bấm chuông trong lượt này chưa
 
 const userDisplay = document.getElementById('userDisplay');
 const playerNameDisplay = document.getElementById('playerNameDisplay');
@@ -71,7 +72,6 @@ function listenToPlayerState() {
       localStorage.removeItem('olympia_player_id');
       localStorage.removeItem('olympia_player_name');
 
-      // Tạo ID mới để cho phép nhập tên chơi tiếp
       playerId = 'player_' + Math.random().toString(36).substr(2, 9);
       localStorage.setItem('olympia_player_id', playerId);
       playerName = '';
@@ -138,6 +138,10 @@ function updateBuzzerUI() {
     btn.disabled = true;
     notice.innerText = '🔒 CHUÔNG ĐANG BỊ KHÓA';
     notice.className = 'mt-4 text-xs text-slate-400 font-medium';
+  } else if (hasBuzzed) {
+    btn.disabled = true;
+    notice.innerText = '✅ BẠN ĐÃ BẤM CHUÔNG (Chờ lượt tiếp theo)';
+    notice.className = 'mt-4 text-xs text-amber-400 font-bold';
   } else {
     btn.disabled = false;
     notice.innerText = '🔔 CHUÔNG ĐÃ MỞ - HÃY BẤM NGAY!';
@@ -160,13 +164,9 @@ function updateChatUI() {
   }
 }
 
-// 6. PHÁT ÂM THANH BUZZER VÀ GỬI TÍN HIỆU
+// 6. THAO TÁC BẤM CHUÔNG (Chỉ cho phép bấm khi chưa từng bấm lượt này)
 function triggerBuzzer() {
-  if (isLocked || isMuteBuzzer) return;
-
-  // Phát file sound/buzzer.mp3 ngay lập tức
-  buzzerAudio.currentTime = 0;
-  buzzerAudio.play().catch(err => console.warn('Lỗi phát âm thanh:', err));
+  if (isLocked || isMuteBuzzer || hasBuzzed) return;
 
   db.ref(`buzzers/${playerId}`).set({
     name: playerName,
@@ -187,16 +187,35 @@ function submitAnswer() {
   input.value = '';
 }
 
-// 7. Bảng Bấm Chuông Realtime
+// 7. BẢNG CHUÔNG REALTIME & PHÁT ÂM THANH TOÀN HỆ THỐNG
+let playerFirstLoad = true;
+let playerPrevBuzzerCount = 0;
+
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const queue = document.getElementById('buzzerQueue');
+  const currentCount = snapshot.numChildren();
+
+  // Kiểm tra xem ID của mình đã có trên Firebase chưa
+  hasBuzzed = snapshot.exists() && snapshot.hasChild(playerId);
+  updateBuzzerUI();
+
   if (!queue) return;
   queue.innerHTML = '';
 
   if (!snapshot.exists()) {
     queue.innerHTML = '<li class="text-slate-500 italic text-xs">Chưa có ai bấm...</li>';
+    playerPrevBuzzerCount = 0;
+    playerFirstLoad = false;
     return;
   }
+
+  // PHÁT ÂM THANH CHUÔNG CHO TẤT CẢ NGƯỜI CHƠI KHI CÓ NGƯỜI MỚI BẤM
+  if (!playerFirstLoad && currentCount > playerPrevBuzzerCount) {
+    buzzerAudio.currentTime = 0;
+    buzzerAudio.play().catch(e => console.warn('Cần click vị trí bất kỳ trên màn hình để bật âm thanh:', e));
+  }
+  playerPrevBuzzerCount = currentCount;
+  playerFirstLoad = false;
 
   let rank = 1;
   snapshot.forEach((child) => {
