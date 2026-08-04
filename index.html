@@ -3,53 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đường Lên Đỉnh Olympia - Thí Sinh</title>
+  <title>Olympia - Thí Sinh</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
   
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
-<body class="min-h-screen pb-10 flex flex-col justify-between">
+<body class="min-h-screen p-4 flex flex-col justify-between">
 
-  <!-- Modal nhập biệt danh bắt buộc -->
+  <!-- BẮT BUỘC TẠO BIỆT DANH -->
   <div id="nicknameModal" class="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
     <div class="olympia-card p-8 max-w-md w-full text-center space-y-4 border-2 border-yellow-500">
-      <h2 class="text-2xl font-black text-yellow-400 uppercase tracking-widest">Đường Lên Đỉnh Olympia</h2>
-      <p class="text-slate-300 text-sm">Nhập biệt danh của thí sinh để bắt đầu tham gia lượt thi</p>
-      <input type="text" id="nicknameInput" placeholder="Tên thí sinh (Ví dụ: Nguyễn Văn A)" class="w-full p-3 rounded bg-slate-900 border border-yellow-600 text-center text-lg font-bold focus:outline-none text-white">
-      <button onclick="saveNickname()" class="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-extrabold rounded uppercase tracking-wider transition">Xác Nhận Tham Gia</button>
+      <h2 class="text-2xl font-black text-yellow-400 uppercase tracking-widest">ĐƯỜNG LÊN ĐỈNH OLYMPIA</h2>
+      <p class="text-slate-300 text-sm">Vui lòng nhập biệt danh để tham gia (Không cần đăng nhập):</p>
+      <input type="text" id="nicknameInput" placeholder="Nhập biệt danh của bạn..." class="w-full p-3 rounded bg-slate-900 border border-yellow-600 text-center text-lg font-bold focus:outline-none text-white">
+      <button onclick="saveNickname()" class="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded uppercase tracking-wider transition">Vào Phòng Game</button>
     </div>
   </div>
 
-  <!-- Header Bảng Điểm 4 Thí Sinh -->
-  <header class="p-4 bg-slate-950/80 border-b border-yellow-600/50 sticky top-0 z-40">
-    <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-      <div class="flex items-center gap-3">
-        <div class="bg-yellow-500 text-slate-950 px-3 py-1 font-black rounded text-xl">OLYMPIA</div>
-        <span id="userDisplay" class="font-bold text-yellow-400 text-lg">---</span>
-      </div>
-      
-      <!-- Display Top 4 Scoreboard -->
-      <div id="scoreboard" class="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full md:w-auto">
-        <!-- Rendered Realtime via JS -->
-      </div>
+  <!-- HEADER -->
+  <header class="max-w-5xl mx-auto w-full flex justify-between items-center bg-slate-950/80 p-4 rounded-xl border border-yellow-600/50 mb-6">
+    <div class="flex items-center gap-3">
+      <div class="bg-yellow-500 text-slate-950 px-3 py-1 font-black rounded text-lg">OLYMPIA</div>
+      <span id="userDisplay" class="font-bold text-yellow-400 text-base">---</span>
     </div>
+    <button onclick="changeNickname()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded text-slate-300 border border-slate-600">Đổi Biệt Danh</button>
   </header>
 
-  <main class="max-w-5xl mx-auto w-full p-4 space-y-6 flex-grow">
+  <main class="max-w-5xl mx-auto w-full space-y-6 flex-grow">
     
-    <!-- Đồng Hồ Đếm Ngược & Trạng Thái -->
-    <section class="olympia-card p-4 text-center border-yellow-500/40">
-      <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Thời Gian Trả Lời</div>
-      <div id="timerDisplay" class="text-4xl md:text-6xl font-black text-yellow-400 tracking-widest">00</div>
-      <div id="gameStatus" class="mt-2 text-sm text-slate-300 font-medium">Đang chờ lượt thi tiếp theo...</div>
-    </section>
-
-    <!-- Khu Vực Bấm Chuông & Gửi Đáp Án -->
+    <!-- KHU VỰC TÁC VỤ: BẤM CHUÔNG & CÂU TRẢ LỜI -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       
-      <!-- Chuông Báo-->
+      <!-- 1. Bấm chuông -->
       <section class="olympia-card p-6 flex flex-col items-center justify-center text-center">
         <h3 class="text-lg font-bold text-yellow-400 uppercase mb-4 tracking-wider">Chuông Báo Tín Hiệu</h3>
         <button id="buzzerBtn" onclick="triggerBuzzer()" class="buzzer-btn w-44 h-44 rounded-full border-4 border-yellow-400 font-black text-3xl tracking-widest text-white uppercase flex items-center justify-center">
@@ -58,33 +45,33 @@
         <span id="buzzerNotice" class="mt-4 text-xs text-slate-400">Ấn nút để giành quyền trả lời</span>
       </section>
 
-      <!-- Khung Gửi Câu Trả Lời -->
-      <section class="olympia-card p-6 flex flex-col justify-between">
+      <!-- 2. Gửi câu trả lời -->
+      <section class="olympia-card p-6 flex flex-col justify-between space-y-4">
         <div>
-          <h3 class="text-lg font-bold text-yellow-400 uppercase mb-4 tracking-wider">Nhập Câu Trả Lời</h3>
-          <textarea id="answerInput" rows="3" placeholder="Gõ câu trả lời của bạn tại đây..." class="w-full p-3 bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-yellow-500 text-base"></textarea>
+          <h3 class="text-lg font-bold text-yellow-400 uppercase mb-3 tracking-wider">Nhập Câu Trả Lời</h3>
+          <textarea id="answerInput" rows="4" placeholder="Gõ câu trả lời của bạn tại đây..." class="w-full p-3 bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-yellow-500 text-sm"></textarea>
         </div>
-        <button onclick="submitAnswer()" class="w-full mt-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded uppercase tracking-wider transition">Gửi Đáp Án</button>
+        <button onclick="submitAnswer()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded uppercase tracking-wider transition">Gửi Đến Admin</button>
       </section>
 
     </div>
 
-    <!-- Bảng Tín Hiệu Tự Động Sắp Xếp Realtime -->
+    <!-- KHU VỰC HIỂN THỊ DỮ LIỆU REALTIME -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       
-      <!-- Thứ tự Chuông -->
+      <!-- Sắp xếp thứ tự bấm chuông -->
       <section class="olympia-card p-4">
-        <h4 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Thứ Tự Tín Hiệu Chuông</h4>
-        <ol id="buzzerQueue" class="space-y-2 text-sm min-h-[120px]">
-          <li class="text-slate-500 italic">Chưa có tín hiệu...</li>
+        <h4 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Thứ Tự Bấm Chuông</h4>
+        <ol id="buzzerQueue" class="space-y-2 text-sm min-h-[100px]">
+          <li class="text-slate-500 italic">Chưa có ai bấm chuông...</li>
         </ol>
       </section>
 
-      <!-- Danh sách Đáp án -->
+      <!-- Sắp xếp câu trả lời theo thời gian gửi -->
       <section class="olympia-card p-4">
-        <h4 class="font-bold text-emerald-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Đáp Án Đã Gửi (Theo Thời Gian)</h4>
-        <div id="answerStream" class="space-y-2 text-sm max-h-48 overflow-y-auto">
-          <p class="text-slate-500 italic">Chưa có đáp án...</p>
+        <h4 class="font-bold text-emerald-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Danh Sách Đáp Án Đã Gửi</h4>
+        <div id="answerStream" class="space-y-2 text-sm max-h-56 overflow-y-auto">
+          <p class="text-slate-500 italic">Chưa có câu trả lời nào...</p>
         </div>
       </section>
 
