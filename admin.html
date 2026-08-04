@@ -33,7 +33,7 @@
     </div>
   </div>
 
-  <!-- NỘI DUNG BẢNG QUẢN TRỊ (Chỉ hiển thị khi đăng nhập thành công) -->
+  <!-- NỘI DUNG BẢNG QUẢN TRỊ OLYMPIA -->
   <template id="adminContent">
     <div class="max-w-5xl mx-auto space-y-6">
       
@@ -53,10 +53,10 @@
         </div>
       </div>
 
-      <!-- ĐIỀU KHIỂN NHA NHANH & THIẾT LẬP -->
+      <!-- ĐIỀU KHIỂN NHANH -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        <!-- Cột 1: Điều khiển chuông -->
+        <!-- Quản lý chuông -->
         <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-3">
           <h2 class="font-bold text-sm text-slate-300 flex items-center gap-2">🔔 Quản Lý Chuông</h2>
           <div class="grid grid-cols-2 gap-2">
@@ -72,7 +72,7 @@
           </button>
         </div>
 
-        <!-- Cột 2: Giới hạn phòng thi -->
+        <!-- Giới hạn thí sinh -->
         <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-3">
           <h2 class="font-bold text-sm text-slate-300 flex items-center gap-2">⚙️ Giới Hạn Thí Sinh</h2>
           <div class="flex gap-2">
@@ -81,10 +81,10 @@
               Lưu
             </button>
           </div>
-          <p class="text-[10px] text-slate-500">Nhập 0 nếu không muốn giới hạn số người tham gia.</p>
+          <p class="text-[10px] text-slate-500">Nhập 0 nếu không muốn giới hạn số người.</p>
         </div>
 
-        <!-- Cột 3: Quản lý Chat -->
+        <!-- Quản lý Chat -->
         <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-3">
           <h2 class="font-bold text-sm text-slate-300 flex items-center gap-2">💬 Dữ Liệu Câu Trả Lời</h2>
           <button onclick="clearAnswers()" class="w-full bg-slate-800 hover:bg-slate-700 text-red-400 border border-slate-700 font-bold py-2.5 rounded-lg text-xs transition">
