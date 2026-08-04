@@ -1,6 +1,47 @@
 // js/admin.js
 
-// 1. Theo dõi Trạng thái Khóa / Mở chuông
+// ================= 1. XÁC THỰC MẬT KHẨU ADMIN =================
+const ADMIN_PASSWORD = "20032006";
+
+function checkAuth() {
+  const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
+  const authModal = document.getElementById('authModal');
+  const adminContent = document.getElementById('adminContent');
+
+  if (isAuthenticated) {
+    if (authModal) authModal.classList.add('hidden');
+    if (adminContent) adminContent.classList.remove('hidden');
+  } else {
+    if (authModal) authModal.classList.remove('hidden');
+    if (adminContent) adminContent.classList.add('hidden');
+  }
+}
+
+function loginAdmin() {
+  const pwdInput = document.getElementById('adminPasswordInput');
+  const errNotice = document.getElementById('authErrorNotice');
+  const val = pwdInput ? pwdInput.value.trim() : '';
+
+  if (val === ADMIN_PASSWORD) {
+    sessionStorage.setItem('admin_authenticated', 'true');
+    if (errNotice) errNotice.innerText = '';
+    if (pwdInput) pwdInput.value = '';
+    checkAuth();
+  } else {
+    if (errNotice) errNotice.innerText = '❌ Mật khẩu không đúng!';
+  }
+}
+
+function logoutAdmin() {
+  sessionStorage.removeItem('admin_authenticated');
+  checkAuth();
+}
+
+// Kiếm tra đăng nhập ngay khi mở trang
+document.addEventListener('DOMContentLoaded', checkAuth);
+
+
+// ================= 2. QUẢN LÝ TRẠNG THÁI CHUÔNG =================
 db.ref('settings/locked').on('value', (snapshot) => {
   const isLocked = snapshot.val() ?? true;
   const badge = document.getElementById('statusBadge');
@@ -15,7 +56,8 @@ db.ref('settings/locked').on('value', (snapshot) => {
   }
 });
 
-// 2. Cấu hình Giới hạn Thí sinh
+
+// ================= 3. QUẢN LÝ SỐ LƯỢNG THÍ SINH TỐI ĐA =================
 db.ref('settings/maxPlayers').on('value', (snapshot) => {
   const max = snapshot.val() || 0;
   const input = document.getElementById('maxPlayersInput');
@@ -29,22 +71,22 @@ function updateMaxPlayers() {
   alert('Đã cập nhật số lượng thí sinh tối đa!');
 }
 
-// 3. Khóa hoặc Mở Chuông
+
+// ================= 4. CÁC TÁC VỤ ĐIỀU HÀNH =================
 function setBuzzerLock(status) {
   db.ref('settings/locked').set(status);
 }
 
-// 4. Clear Chuông
 function clearBuzzers() {
   db.ref('buzzers').remove();
 }
 
-// 5. Clear Câu trả lời
 function clearAnswers() {
   db.ref('answers').remove();
 }
 
-// 6. Theo dõi Thứ tự Chuông
+
+// ================= 5. THEO DÕI CHUÔNG REALTIME =================
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('adminBuzzerList');
   const countBadge = document.getElementById('buzzerCount');
@@ -80,7 +122,8 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   if (countBadge) countBadge.innerText = String(rank - 1);
 });
 
-// 7. Theo dõi Danh sách Thí sinh & Điều khiển (Cấm / Ép thoát)
+
+// ================= 6. THEO DÕI & QUẢN LÝ THÍ SINH =================
 db.ref('players').on('value', (snapshot) => {
   const tbody = document.getElementById('playerTableBody');
   const countBadge = document.getElementById('playerCount');
@@ -98,7 +141,7 @@ db.ref('players').on('value', (snapshot) => {
     const key = child.key;
     const p = child.val();
 
-    if (p.kicked) return; // Bỏ qua thí sinh đã bị kick
+    if (p.kicked) return; // Bỏ qua thí sinh đã bị đuổi
 
     total++;
     const row = document.createElement('tr');
@@ -143,7 +186,8 @@ function kickPlayer(id) {
   }
 }
 
-// 8. Theo dõi Luồng Câu trả lời của tất cả thí sinh
+
+// ================= 7. THEO DÕI CÂU TRẢ LỜI =================
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const stream = document.getElementById('adminAnswerStream');
   if (!stream) return;
