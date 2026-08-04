@@ -1,66 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&display=swap');
-
-body {
-  font-family: 'Montserrat', sans-serif;
-  background-color: #0b132b;
-  color: #ffffff;
-}
-
-.olympia-card {
-  background: rgba(28, 37, 65, 0.85);
-  border: 2px solid #3a506b;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  backdrop-filter: blur(8px);
-  border-radius: 12px;
-}
-
-.gold-glow {
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
-  border-color: #ffd700;
-}
-
-/* NÚT BẤM CHUÔNG THÍ SINH */
-.buzzer-btn {
-  background: radial-gradient(circle, #ff4d4d 0%, #cc0000 100%);
-  box-shadow: 0 10px 0 #800000, 0 15px 20px rgba(0,0,0,0.5);
+/* Hiệu ứng Nút Bấm Chuông */
+.buzzer {
+  width: 100%;
+  height: 160px;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  box-shadow: 0 10px 0 #7f1d1d, 0 15px 25px rgba(0, 0, 0, 0.5);
   transition: all 0.1s ease;
-  user-select: none;
-}
-
-/* Hiệu ứng khi chuông sẵn sàng */
-.buzzer-btn:not(:disabled) {
-  animation: pulse-glow 1.5s infinite alternate;
   cursor: pointer;
 }
 
-.buzzer-btn:active:not(:disabled) {
-  transform: translateY(6px) scale(0.95);
-  box-shadow: 0 4px 0 #800000, 0 8px 10px rgba(0,0,0,0.5);
-  background: radial-gradient(circle, #ff6666 0%, #e60000 100%);
+.buzzer:active:not(:disabled) {
+  transform: translateY(6px);
+  box-shadow: 0 4px 0 #7f1d1d, 0 8px 15px rgba(0, 0, 0, 0.5);
 }
 
-.buzzer-btn:disabled {
-  background: #333333;
-  box-shadow: none;
+.buzzer:disabled {
+  background: linear-gradient(135deg, #475569 0%, #334155 100%);
+  box-shadow: 0 10px 0 #1e293b, 0 15px 25px rgba(0, 0, 0, 0.3);
   cursor: not-allowed;
-  border-color: #555555;
   opacity: 0.6;
-  animation: none;
 }
 
-@keyframes pulse-glow {
-  0% { box-shadow: 0 10px 0 #800000, 0 0 10px rgba(255, 77, 77, 0.4); }
-  100% { box-shadow: 0 10px 0 #800000, 0 0 25px rgba(255, 77, 77, 0.9); }
+/* Hiệu ứng viền vàng ánh kim cho Người bấm đầu tiên */
+.gold-glow {
+  box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
 }
 
-/* HIỆU ỨNG NÚT BẤM CHUNG (ADMIN & THÍ SINH) */
-.btn-action {
-  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+/* Tùy chỉnh thanh cuộn đẹp mắt */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
 }
-.btn-action:hover {
-  filter: brightness(1.1);
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 4px;
 }
-.btn-action:active {
-  transform: scale(0.95);
-  filter: brightness(1.25);
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
