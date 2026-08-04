@@ -49,7 +49,92 @@ function clearAnswers() {
   db.ref('answers').remove();
 }
 
-// Lắng nghe tín hiệu chuông Realtime để phát âm thanh ở màn hình Admin
+function resetAllPlayers() {
+  if (confirm('Bạn có chắc chắn muốn xóa toàn bộ danh sách thí sinh?')) {
+    db.ref('players').remove();
+  }
+}
+
+// CÁC QUYỀN CỦA ADMIN VỚI TỪNG THÍ SINH
+function toggleMuteBuzzer(pId, currentVal) {
+  db.ref(`players/${pId}/muteBuzzer`).set(!currentVal);
+}
+
+function toggleMuteChat(pId, currentVal) {
+  db.ref(`players/${pId}/muteChat`).set(!currentVal);
+}
+
+function kickPlayer(pId) {
+  if (confirm('Bạn có chắc muốn ĐUỔI thí sinh này khỏi phòng?')) {
+    db.ref(`players/${pId}/kicked`).set(true);
+  }
+}
+
+function unkickPlayer(pId) {
+  db.ref(`players/${pId}/kicked`).set(false);
+}
+
+// QUẢN LÝ THÍ SINH REALTIME
+db.ref('players').on('value', (snapshot) => {
+  const container = document.getElementById('playerList');
+  const countSpan = document.getElementById('playerCount');
+  container.innerHTML = '';
+
+  if (!snapshot.exists()) {
+    container.innerHTML = '<p class="text-slate-500 italic text-sm col-span-full">Chưa có thí sinh nào tham gia...</p>';
+    countSpan.innerText = '0 Thí sinh';
+    return;
+  }
+
+  const players = snapshot.val();
+  const playerKeys = Object.keys(players);
+  countSpan.innerText = `${playerKeys.length} Thí sinh`;
+
+  playerKeys.forEach((key) => {
+    const p = players[key];
+    const isMuteBuzzer = p.muteBuzzer ?? false;
+    const isMuteChat = p.muteChat ?? false;
+    const isKicked = p.kicked ?? false;
+
+    const card = document.createElement('div');
+    card.className = `p-3 rounded-lg border flex flex-col justify-between space-y-3 ${isKicked ? 'bg-red-950/40 border-red-800 opacity-75' : 'bg-slate-900 border-slate-700'}`;
+    
+    card.innerHTML = `
+      <div class="flex justify-between items-center">
+        <div>
+          <span class="font-bold text-white text-base">${p.name || 'Không tên'}</span>
+          <div class="flex gap-1 mt-1">
+            ${isKicked ? '<span class="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-bold">BỊ ĐUỔI</span>' : ''}
+            ${isMuteBuzzer ? '<span class="text-[10px] bg-yellow-600 text-white px-1.5 py-0.5 rounded font-bold">CHẶN CHUÔNG</span>' : ''}
+            ${isMuteChat ? '<span class="text-[10px] bg-orange-600 text-white px-1.5 py-0.5 rounded font-bold">CHẶN CHAT</span>' : ''}
+            ${!isKicked && !isMuteBuzzer && !isMuteChat ? '<span class="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">BÌNH THƯỜNG</span>' : ''}
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1 pt-2 border-t border-slate-800">
+        <button onclick="toggleMuteBuzzer('${key}', ${isMuteBuzzer})" class="btn-action text-[11px] py-1 px-2 rounded font-bold ${isMuteBuzzer ? 'bg-yellow-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+          ${isMuteBuzzer ? 'Bỏ Chặn Chuông' : 'Chặn Chuông'}
+        </button>
+        <button onclick="toggleMuteChat('${key}', ${isMuteChat})" class="btn-action text-[11px] py-1 px-2 rounded font-bold ${isMuteChat ? 'bg-orange-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+          ${isMuteChat ? 'Bỏ Chặn Chat' : 'Chặn Chat'}
+        </button>
+        ${isKicked ? `
+          <button onclick="unkickPlayer('${key}')" class="btn-action text-[11px] py-1 px-2 rounded font-bold bg-emerald-700 hover:bg-emerald-600 text-white">
+            Cho Vào Lại
+          </button>
+        ` : `
+          <button onclick="kickPlayer('${key}')" class="btn-action text-[11px] py-1 px-2 rounded font-bold bg-red-700 hover:bg-red-600 text-white">
+            Đuổi
+          </button>
+        `}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+});
+
+// Lắng nghe tiếng chuông Realtime để phát âm thanh ở màn hình Admin
 db.ref('buzzers').on('child_added', (snapshot) => {
   const data = snapshot.val();
   if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
@@ -57,6 +142,7 @@ db.ref('buzzers').on('child_added', (snapshot) => {
   }
 });
 
+// Lắng nghe danh sách bấm chuông
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('adminBuzzerList');
   list.innerHTML = '';
@@ -82,12 +168,13 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
+// Lắng nghe TẤT CẢ câu trả lời (ĐẶC QUYỀN ADMIN XEM TOÀN BỘ)
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('adminAnswerList');
   list.innerHTML = '';
 
   if (!snapshot.exists()) {
-    list.innerHTML = '<p class="text-slate-500 italic">Chưa nhận được câu trả lời...</p>';
+    list.innerHTML = '<p class="text-slate-500 italic">Chưa nhận được câu trả lời nào...</p>';
     return;
   }
 
