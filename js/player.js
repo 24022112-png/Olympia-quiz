@@ -1,6 +1,6 @@
 // js/player.js
 
-// 1. Quản lý ID Thí Sinh trong LocalStorage
+// 1. Khởi tạo & Lấy ID Thí sinh
 let playerId = localStorage.getItem('olympia_player_id');
 if (!playerId) {
   playerId = 'player_' + Math.random().toString(36).substr(2, 9);
@@ -12,13 +12,12 @@ let isLocked = true;
 let isMuteBuzzer = false;
 let isMuteChat = false;
 let isKicked = false;
-let maxPlayers = 0;
 
-// Hiển thị tên
+// Hiển thị tên thí sinh hiện tại
 const userDisplay = document.getElementById('userDisplay');
 if (userDisplay) userDisplay.innerText = playerName || 'Chưa nhập';
 
-// Nếu chưa có tên, mở Modal nhập tên
+// Hiển thị Modal nhập tên nếu chưa có
 if (!playerName) {
   const modal = document.getElementById('nicknameModal');
   if (modal) modal.classList.remove('hidden');
@@ -29,11 +28,10 @@ if (!playerName) {
 // 2. Đăng ký/Cập nhật Thí sinh lên Firebase
 function registerPlayer() {
   if (!playerName) return;
-  
-  // Kiểm tra giới hạn số lượng người chơi trước khi cho vào
+
   db.ref('settings/maxPlayers').once('value', (snapshot) => {
-    maxPlayers = snapshot.val() || 0;
-    
+    const maxPlayers = snapshot.val() || 0;
+
     db.ref('players').once('value', (pSnapshot) => {
       const players = pSnapshot.val() || {};
       const currentKeys = Object.keys(players);
@@ -44,7 +42,6 @@ function registerPlayer() {
         return;
       }
 
-      // Lưu thông tin thí sinh
       db.ref(`players/${playerId}`).update({
         name: playerName,
         lastOnline: Date.now()
@@ -57,16 +54,16 @@ function saveNickname() {
   const input = document.getElementById('nicknameInput');
   const val = input ? input.value.trim() : '';
   if (!val) {
-    alert('Vui lòng nhập tên!');
+    alert('Vui lòng nhập tên của bạn!');
     return;
   }
   playerName = val;
   localStorage.setItem('olympia_player_name', playerName);
   if (userDisplay) userDisplay.innerText = playerName;
-  
+
   const modal = document.getElementById('nicknameModal');
   if (modal) modal.classList.add('hidden');
-  
+
   registerPlayer();
 }
 
@@ -75,13 +72,13 @@ function changeNickname() {
   if (modal) modal.classList.remove('hidden');
 }
 
-// 3. Theo dõi trạng thái Chuông (Khóa / Mở)
+// 3. Theo dõi trạng thái Chuông từ Admin
 db.ref('settings/locked').on('value', (snapshot) => {
   isLocked = snapshot.val() ?? true;
-  updateBuzzerStatus();
+  updateBuzzerUI();
 });
 
-// 4. Theo dõi thông tin cá nhân (Bị đuổi / Cấm chuông / Cấm chat)
+// 4. Theo dõi thông tin cá nhân (Cấm chuông / Cấm chat / Bị kick)
 db.ref(`players/${playerId}`).on('value', (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
@@ -99,11 +96,11 @@ db.ref(`players/${playerId}`).on('value', (snapshot) => {
     }
   }
 
-  updateBuzzerStatus();
-  updateChatStatus();
+  updateBuzzerUI();
+  updateChatUI();
 });
 
-function updateBuzzerStatus() {
+function updateBuzzerUI() {
   const btn = document.getElementById('buzzerBtn');
   const notice = document.getElementById('buzzerNotice');
   if (!btn || !notice) return;
@@ -122,12 +119,12 @@ function updateBuzzerStatus() {
     notice.className = 'mt-4 text-xs text-slate-400 font-medium';
   } else {
     btn.disabled = false;
-    notice.innerText = '🔔 CHUÔNG ĐÃ MỞ - HÃY BẤM NGAI!';
+    notice.innerText = '🔔 CHUÔNG ĐÃ MỞ - HÃY BẤM NGAY!';
     notice.className = 'mt-4 text-xs text-emerald-400 font-bold animate-pulse';
   }
 }
 
-function updateChatStatus() {
+function updateChatUI() {
   const input = document.getElementById('answerInput');
   const btn = document.getElementById('sendBtn');
   const notice = document.getElementById('chatNotice');
@@ -136,10 +133,7 @@ function updateChatStatus() {
   if (isMuteChat || isKicked) {
     input.disabled = true;
     btn.disabled = true;
-    if (notice) {
-      notice.innerText = '🔇 Bạn đã bị cấm gửi câu trả lời';
-      notice.className = 'text-xs text-orange-500 font-bold';
-    }
+    if (notice) notice.innerText = '🔇 Bạn đã bị cấm gửi câu trả lời';
   } else {
     input.disabled = false;
     btn.disabled = false;
@@ -174,7 +168,7 @@ function submitAnswer() {
   input.value = '';
 }
 
-// 7. Lắng nghe Thứ tự Bấm Chuông Realtime
+// 7. Lắng nghe Danh sách Bấm Chuông Realtime
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const queue = document.getElementById('buzzerQueue');
   if (!queue) return;
@@ -196,22 +190,22 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// 8. Lắng nghe Lịch sử Trả lời của bản thân
+// 8. Lắng nghe Nhật ký Trả lời của cá nhân
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const stream = document.getElementById('answerStream');
   if (!stream) return;
   stream.innerHTML = '';
 
   if (!snapshot.exists()) {
-    stream.innerHTML = '<p class="text-slate-500 italic text-xs">Chưa có câu trả lời...</p>';
+    stream.innerHTML = '<p class="text-slate-500 italic text-xs">Chưa gửi câu trả lời nào...</p>';
     return;
   }
 
-  let hasData = false;
+  let count = 0;
   snapshot.forEach((child) => {
     const data = child.val();
     if (data.playerId === playerId) {
-      hasData = true;
+      count++;
       const item = document.createElement('div');
       item.className = 'p-2 rounded bg-slate-800 text-xs border border-slate-700 text-slate-200';
       item.innerText = data.text;
@@ -219,8 +213,8 @@ db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
     }
   });
 
-  if (!hasData) {
-    stream.innerHTML = '<p class="text-slate-500 italic text-xs">Chưa có câu trả lời...</p>';
+  if (count === 0) {
+    stream.innerHTML = '<p class="text-slate-500 italic text-xs">Chưa gửi câu trả lời nào...</p>';
   }
 });
 
