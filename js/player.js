@@ -1,11 +1,5 @@
-// =========================================================================
-// OLYMPIA PLAYER SYSTEM - FULL REWRITE
-// =========================================================================
-
-// Web App URL Google Apps Script của bạn
 const webAppUrl = 'https://script.google.com/macros/s/AKfycbxrZ6zJnqqUvNC7TF3FoYg426heDoP50DINEHOabc445LOT94Yf24PpB2OpKkBi89eD_A/exec';
 
-// 1. KHỞI TẠO BIẾN TRẠNG THÁI & ID THÍ SINH
 let playerId = localStorage.getItem('olympia_player_id');
 if (!playerId) {
   playerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
@@ -27,18 +21,13 @@ let isPlayerRegistered = false;
 
 const pageLoadTime = Date.now();
 
-// =========================================================================
-// 2. HÀM PHÁT ÂM THANH
-// =========================================================================
 function playBuzzerSound() {
   const audio = new Audio('sound/buzzer.mp3');
   audio.currentTime = 0;
   audio.play().catch(e => console.log("Không thể tự động phát âm thanh:", e));
 }
 
-// =========================================================================
-// 3. TƯƠNG TÁC GOOGLE SHEET (TỰ ĐỘNG THÊM CỘT THÍ SINH)
-// =========================================================================
+// TỰ ĐỘNG THÊM THÍ SINH VÀO CỘT MỚI TRÊN GOOGLE SHEET
 async function addPlayerToGoogleSheet(playerName) {
   if (!playerName) return;
   try {
@@ -50,26 +39,20 @@ async function addPlayerToGoogleSheet(playerName) {
         playerName: playerName
       })
     });
-    console.log(`Đã gửi yêu cầu thêm thí sinh "${playerName}" vào Google Sheet.`);
   } catch (e) {
     console.error("Lỗi thêm thí sinh vào Google Sheet:", e);
   }
 }
 
-// =========================================================================
-// 4. QUẢN LÝ ĐĂNG KÝ & THÔNG TIN NICKNAME
-// =========================================================================
 function registerPlayerToFirebase() {
   if (!nickname || !playerId) return;
 
-  // Ghi vào Firebase
   db.ref('players/' + playerId).update({
     id: playerId,
     name: nickname,
     lastActive: firebase.database.ServerValue.TIMESTAMP
   });
 
-  // Đẩy tên thí sinh sang Google Sheet
   addPlayerToGoogleSheet(nickname);
 }
 
@@ -84,15 +67,10 @@ function saveNickname() {
   const inputEl = document.getElementById('nicknameInput');
   const inputVal = inputEl ? inputEl.value.trim() : '';
 
-  if (!inputVal) {
-    alert('Vui lòng nhập tên / biệt danh của bạn!');
-    return;
-  }
+  if (!inputVal) return alert('Vui lòng nhập biệt danh của bạn!');
 
-  // Kiểm tra nếu phòng đã đầy
   if (maxPlayers > 0 && currentPlayersCount >= maxPlayers && !isPlayerRegistered) {
-    alert(`Phòng đã đủ số lượng người chơi tối đa (${maxPlayers} người)!`);
-    return;
+    return alert(`Phòng đã đủ số lượng người chơi tối đa (${maxPlayers} người)!`);
   }
 
   nickname = inputVal;
@@ -113,30 +91,66 @@ function changeNickname() {
   if (modal) modal.classList.remove('hidden');
 }
 
-// =========================================================================
-// 5. THEO DÕI TRẠNG THÁI REALTIME TỪ FIREBASE
-// =========================================================================
-
-// A. Lắng nghe cấu hình số người chơi tối đa
+// LẮNG NGHE LỚP REALTIME
 db.ref('settings/maxPlayers').on('value', (snapshot) => {
   maxPlayers = snapshot.val() || 0;
   updateMaxPlayerNotice();
 });
 
-// B. Lắng nghe danh sách tất cả thí sinh (để đếm số người)
+// CẬP NHẬT REALTIME DANH SÁCH NGUỜI CHƠI ĐANG TRONG PHÒNG
 db.ref('players').on('value', (snapshot) => {
+  const container = document.getElementById('activePlayersList') || document.getElementById('playerList');
+
   if (snapshot.exists()) {
     const players = snapshot.val();
-    currentPlayersCount = Object.keys(players).length;
+    const playerKeys = Object.keys(players);
+    currentPlayersCount = playerKeys.length;
     isPlayerRegistered = !!players[playerId];
+
+    if (container) {
+      container.innerHTML = '';
+      let countActive = 0;
+
+      playerKeys.forEach((key) => {
+        const p = players[key];
+        const isMe = key === playerId;
+        const pKicked = p.kicked ?? false;
+
+        if (!pKicked) {
+          countActive++;
+          const item = document.createElement('div');
+          item.className = `p-2 rounded-lg border text-xs flex justify-between items-center transition ${
+            isMe 
+              ? 'bg-indigo-950/80 border-indigo-500 text-indigo-200 font-bold' 
+              : 'bg-slate-800/80 border-slate-700 text-slate-200'
+          }`;
+          
+          item.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>${escapeHtml(p.name)}</span>
+            </div>
+            ${isMe ? '<span class="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-normal">Bạn</span>' : ''}
+          `;
+          container.appendChild(item);
+        }
+      });
+
+      if (countActive === 0) {
+        container.innerHTML = '<p class="text-slate-500 italic text-xs p-2">Chưa có ai trong phòng...</p>';
+      }
+    }
   } else {
     currentPlayersCount = 0;
     isPlayerRegistered = false;
+    if (container) {
+      container.innerHTML = '<p class="text-slate-500 italic text-xs p-2">Chưa có người chơi nào...</p>';
+    }
   }
+
   updateMaxPlayerNotice();
 });
 
-// C. Lắng nghe trạng thái riêng của bản thân thí sinh (chặn chuông, chặn chat, bị đuổi)
 db.ref('players/' + playerId).on('value', (snapshot) => {
   if (!snapshot.exists()) return;
   const data = snapshot.val();
@@ -150,7 +164,6 @@ db.ref('players/' + playerId).on('value', (snapshot) => {
   const answerInput = document.getElementById('answerInput');
   const chatNotice = document.getElementById('chatNotice');
 
-  // Xử lý khi bị ĐUỔI (Kick)
   if (isKicked) {
     if (kickedModal) kickedModal.classList.remove('hidden');
     const buzzerBtn = document.getElementById('buzzerBtn');
@@ -162,7 +175,6 @@ db.ref('players/' + playerId).on('value', (snapshot) => {
     if (kickedModal) kickedModal.classList.add('hidden');
   }
 
-  // Xử lý khi bị CHẶN CHAT
   if (isMuteChat) {
     if (sendBtn) sendBtn.disabled = true;
     if (answerInput) answerInput.disabled = true;
@@ -179,11 +191,9 @@ db.ref('players/' + playerId).on('value', (snapshot) => {
   updateBuzzerButtonState();
 });
 
-// D. Lắng nghe trạng thái KHÓA / MỞ chuông từ Admin
 db.ref('settings/locked').on('value', (snapshot) => {
   const newLockState = snapshot.val() ?? true;
 
-  // Nếu Admin vừa MỞ KHÓA (chuyển từ true -> false): reset lượt bấm chuông
   if (previousLockState === true && newLockState === false) {
     hasBuzzedInCurrentCycle = false;
   }
@@ -193,7 +203,6 @@ db.ref('settings/locked').on('value', (snapshot) => {
   updateBuzzerButtonState();
 });
 
-// E. Phát âm thanh khi có ai đó bấm chuông
 db.ref('buzzers').on('child_added', (snapshot) => {
   const data = snapshot.val();
   if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
@@ -201,7 +210,6 @@ db.ref('buzzers').on('child_added', (snapshot) => {
   }
 });
 
-// F. Hiển thị danh sách thứ tự bấm chuông
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('buzzerQueue');
   if (!list) return;
@@ -237,7 +245,6 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// G. Hiển thị danh sách câu trả lời cá nhân
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('answerStream');
   if (!list) return;
@@ -269,21 +276,16 @@ db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   }
 });
 
-// =========================================================================
-// 6. THAO TÁC CỦA NGUỜI CHƠI (BẤM CHUÔNG & GỬI CÂU TRẢ LỜI)
-// =========================================================================
-
 function triggerBuzzer() {
   if (isKicked) return alert('Bạn đã bị Admin đuổi khỏi phòng!');
   if (isMuteBuzzer) return alert('Bạn đang bị Admin CHẶN bấm chuông!');
   if (isLocked) return alert('Chuông đang bị khóa bởi Admin!');
   if (hasBuzzedInCurrentCycle) return alert('Bạn đã bấm chuông trong lượt này rồi!');
-  if (!nickname) return alert('Vui lòng nhập biệt danh trước khi bấm chuông!');
+  if (!nickname) return alert('Vui lòng nhập biệt danh!');
 
   hasBuzzedInCurrentCycle = true;
   updateBuzzerButtonState();
 
-  // Đẩy tín hiệu bấm chuông lên Firebase
   db.ref('buzzers').push({
     playerId: playerId,
     name: nickname,
@@ -338,9 +340,6 @@ function updateBuzzerButtonState() {
   }
 }
 
-// =========================================================================
-// 7. BẢNG XẾP HẠNG TỔNG ĐIỂM (TỰ ĐỘNG LẤY TỪ GOOGLE SHEET)
-// =========================================================================
 async function loadLeaderboard() {
   const container = document.getElementById('leaderboardBody');
   if (!container) return;
@@ -352,7 +351,6 @@ async function loadLeaderboard() {
     const data = await res.json();
     if (!Array.isArray(data)) return;
 
-    // Sắp xếp tổng điểm giảm dần
     const sortedData = [...data].sort((a, b) => b.total - a.total);
 
     container.innerHTML = '';
@@ -384,16 +382,11 @@ async function loadLeaderboard() {
   }
 }
 
-// Hàm hỗ trợ mã hóa HTML chống lỗi XSS
 function escapeHtml(str) {
   return String(str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// =========================================================================
-// 8. TỰ ĐỘNG CHẠY KHI TẢI TRANG
-// =========================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Kiểm tra Nickname sẵn có
   if (nickname) {
     const modal = document.getElementById('nicknameModal');
     const userDisp = document.getElementById('userDisplay');
@@ -405,7 +398,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modal) modal.classList.remove('hidden');
   }
 
-  // 2. Tải Bảng xếp hạng điểm từ Google Sheet
   loadLeaderboard();
-  setInterval(loadLeaderboard, 10000); // Cập nhật lại mỗi 10 giây
+  setInterval(loadLeaderboard, 10000);
 });
