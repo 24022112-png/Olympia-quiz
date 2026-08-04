@@ -1,20 +1,20 @@
 // js/firebase-config.js
 
-// 1. Cấu hình Firebase của bạn
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBIBD8xulzODI0Goz005FqYU0gm2VKMVpU",
+  authDomain: "olympia-quiz.firebaseapp.com",
+  databaseURL: "https://olympia-quiz-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "olympia-quiz",
+  storageBucket: "olympia-quiz.firebasestorage.app",
+  messagingSenderId: "1005473570114",
+  appId: "1:1005473570114:web:34dac8abaa89163b1b7cdb",
+  measurementId: "G-3ZLF3M9NK4"
 };
 
-// 2. Khởi tạo Firebase
+// Khởi tạo Firebase (Kiểm tra tránh lặp phiên bản)
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
-// 3. Khởi tạo Database Reference
+// Khởi tạo biến kết nối CSDL Realtime dùng chung cho toàn hệ thống
 const db = firebase.database();
