@@ -2,7 +2,7 @@
 const ADMIN_PASSWORD = "20032006";
 const adminBuzzerAudio = new Audio('sound/buzzer.mp3');
 
-// Tham chiếu CSV trực tiếp từ Google Sheet
+// Tham chiếu CSV ngầm từ Google Sheet
 const SHEET_ID = '1ngiCqrQWG_2Mz93NtBoRP2bDm3DtYmZSX0VnlOqMplQ';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 
@@ -49,7 +49,7 @@ function adminLogout() {
   window.location.reload();
 }
 
-// ĐỒNG BỘ ĐIỂM NGẦM TỪ GOOGLE SHEET CHUYỂN THẲNG TỚI THÍ SINH (B6 -> F6)
+// ĐỌC B6:F6 TỪ GOOGLE SHEET VÀ ĐẨY THẲNG LÊN FIREBASE CHO THÍ SINH
 async function syncScoresFromGoogleSheet() {
   try {
     const res = await fetch(`${CSV_URL}&_t=${Date.now()}`);
@@ -58,10 +58,7 @@ async function syncScoresFromGoogleSheet() {
     const text = await res.text();
     const lines = text.split(/\r?\n/).map(line => line.split(',').map(cell => cell.replace(/^"|"$/g, '').trim()));
 
-    // Hàng 6 tương ứng Index 5
     const row6 = lines[5] || [];
-
-    // Lấy giá trị các ô B6, C6, D6, E6, F6 (Index 1 -> 5)
     const sheetScores = row6.slice(1, 6).map(val => {
       const num = Number(val);
       return isNaN(num) ? 0 : num;
@@ -71,14 +68,11 @@ async function syncScoresFromGoogleSheet() {
     if (!snapshot.exists()) return;
 
     const playersData = snapshot.val();
-
-    // Sắp xếp thứ tự thí sinh theo thời gian gia nhập (joinedAt)
     const sortedPlayers = Object.keys(playersData)
       .map(key => ({ key, ...playersData[key] }))
       .filter(p => !p.kicked)
       .sort((a, b) => (a.joinedAt || a.lastOnline || 0) - (b.joinedAt || b.lastOnline || 0));
 
-    // Gán điểm trực tiếp cho từng người: Người 1 -> B6, Người 2 -> C6, Người 3 -> D6, Người 4 -> E6, Người 5 -> F6
     sortedPlayers.forEach((player, index) => {
       if (index < sheetScores.length) {
         const targetScore = sheetScores[index];
@@ -96,10 +90,10 @@ async function syncScoresFromGoogleSheet() {
     }
 
   } catch (err) {
-    console.error('Lỗi lấy điểm Google Sheet:', err);
+    console.error('Lỗi lấy điểm Sheet:', err);
     const sheetStatus = document.getElementById('sheetSyncStatus');
     if (sheetStatus) {
-      sheetStatus.innerText = '🔴 Lỗi đọc Google Sheet! Hãy kiểm tra lại quyền Chia sẻ.';
+      sheetStatus.innerText = '🔴 Lỗi đọc Google Sheet!';
       sheetStatus.className = "text-[11px] text-red-400 font-mono mt-1 font-bold";
     }
   }
@@ -112,7 +106,7 @@ function startGoogleSheetSync() {
 }
 
 function startFirebaseListeners() {
-  // 1. Khóa/Mở chuông
+  // 1. Trạng thái Khóa/Mở chuông
   db.ref('settings/locked').on('value', (snapshot) => {
     const isLocked = snapshot.val() ?? true;
     const badge = document.getElementById('statusBadge');
@@ -174,11 +168,28 @@ function startFirebaseListeners() {
     if (countBadge) countBadge.innerText = String(rank - 1);
   });
 
-  // 4. Bảng Thí sinh (ĐÃ BỎ CỘT ĐIỂM)
+  // 4. Bảng Thí sinh (Tự động đè tiêu đề bảng HTML để gỡ bỏ cột ĐIỂM)
   db.ref('players').on('value', (snapshot) => {
     const tbody = document.getElementById('playerTableBody');
     const countBadge = document.getElementById('playerCount');
     if (!tbody) return;
+
+    // Ép tiêu đề bảng chỉ gồm 4 cột, xóa bỏ cột ĐIỂM
+    const table = tbody.closest('table');
+    if (table) {
+      let thead = table.querySelector('thead');
+      if (thead) {
+        thead.innerHTML = `
+          <tr class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+            <th class="p-2">Thí sinh</th>
+            <th class="p-2 text-center">Chuông</th>
+            <th class="p-2 text-center">Chat</th>
+            <th class="p-2 text-center">Xóa</th>
+          </tr>
+        `;
+      }
+    }
+
     tbody.innerHTML = '';
 
     if (!snapshot.exists()) {
