@@ -13,32 +13,27 @@
 <body class="p-4 md:p-8 min-h-screen">
 
   <div class="max-w-5xl mx-auto space-y-6">
-    <!-- HEADER ADMIN -->
     <header class="flex justify-between items-center bg-slate-950 p-4 rounded-xl border border-yellow-500/50">
       <h1 class="text-xl font-black text-yellow-400 uppercase tracking-widest">Bảng Quản Trị Viên (Admin)</h1>
       <span class="text-xs bg-red-600 text-white px-3 py-1 font-bold rounded uppercase">Điều Hành</span>
     </header>
 
-    <!-- NÚT QUẢN LÝ TÁC VỤ -->
     <section class="olympia-card p-6">
-      <h3 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-4 text-sm">Công Cụ Bảng Điều Khuẩn</h3>
+      <h3 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-4 text-sm">Công Cụ Bảng Điều Khiển</h3>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <button id="toggleLockBtn" onclick="toggleLock()" class="py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded uppercase tracking-wider text-sm transition">
+        <button id="toggleLockBtn" onclick="toggleLock()" class="btn-action py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded uppercase tracking-wider text-sm transition">
           Mở Khóa Chuông
         </button>
-        <button onclick="clearBuzzers()" class="py-3 bg-red-700 hover:bg-red-600 font-bold rounded uppercase tracking-wider text-sm transition">
+        <button onclick="clearBuzzers()" class="btn-action py-3 bg-red-700 hover:bg-red-600 font-bold rounded uppercase tracking-wider text-sm transition">
           Xóa Danh Sách Chuông
         </button>
-        <button onclick="clearAnswers()" class="py-3 bg-red-700 hover:bg-red-600 font-bold rounded uppercase tracking-wider text-sm transition">
+        <button onclick="clearAnswers()" class="btn-action py-3 bg-red-700 hover:bg-red-600 font-bold rounded uppercase tracking-wider text-sm transition">
           Xóa Danh Sách Câu Trả Lời
         </button>
       </div>
     </section>
 
-    <!-- HIỂN THỊ REALTIME CHO ADMIN -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      
-      <!-- Thứ tự Bấm chuông -->
       <section class="olympia-card p-4">
         <h4 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Thứ Tự Bấm Chuông Realtime</h4>
         <ol id="adminBuzzerList" class="space-y-2 text-sm min-h-[120px]">
@@ -46,14 +41,12 @@
         </ol>
       </section>
 
-      <!-- Danh sách Câu trả lời -->
       <section class="olympia-card p-4">
         <h4 class="font-bold text-emerald-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Đáp Án Nhận Được (Sắp Xếp Theo Thời Gian)</h4>
         <div id="adminAnswerList" class="space-y-2 text-sm max-h-80 overflow-y-auto">
           <p class="text-slate-500 italic">Chưa nhận được câu trả lời...</p>
         </div>
       </section>
-
     </div>
   </div>
 
