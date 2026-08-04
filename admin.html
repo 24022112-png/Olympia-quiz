@@ -12,15 +12,16 @@
 </head>
 <body class="p-4 md:p-8 min-h-screen">
 
-  <div class="max-w-5xl mx-auto space-y-6">
+  <div class="max-w-6xl mx-auto space-y-6">
     <header class="flex justify-between items-center bg-slate-950 p-4 rounded-xl border border-yellow-500/50">
       <h1 class="text-xl font-black text-yellow-400 uppercase tracking-widest">Bảng Quản Trị Viên (Admin)</h1>
-      <span class="text-xs bg-red-600 text-white px-3 py-1 font-bold rounded uppercase">Điều Hành</span>
+      <span class="text-xs bg-red-600 text-white px-3 py-1 font-bold rounded uppercase">Điều Hành Sân Chơi</span>
     </header>
 
+    <!-- ĐIỀU KHIỂN CHUNG -->
     <section class="olympia-card p-6">
-      <h3 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-4 text-sm">Công Cụ Bảng Điều Khiển</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <h3 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-4 text-sm">Công Cụ Điều Khiển Chung</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <button id="toggleLockBtn" onclick="toggleLock()" class="btn-action py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded uppercase tracking-wider text-sm transition">
           Mở Khóa Chuông
         </button>
@@ -28,11 +29,26 @@
           Xóa Danh Sách Chuông
         </button>
         <button onclick="clearAnswers()" class="btn-action py-3 bg-red-700 hover:bg-red-600 font-bold rounded uppercase tracking-wider text-sm transition">
-          Xóa Danh Sách Câu Trả Lời
+          Xóa Đáp Án
+        </button>
+        <button onclick="resetAllPlayers()" class="btn-action py-3 bg-purple-700 hover:bg-purple-600 font-bold rounded uppercase tracking-wider text-sm transition">
+          Xóa Tất Cả Thí Sinh
         </button>
       </div>
     </section>
 
+    <!-- QUẢN LÝ THÍ SINH (CHẶN / ĐUỔI) -->
+    <section class="olympia-card p-6">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-4">
+        <h3 class="font-bold text-yellow-400 uppercase text-sm">Quản Lý Thí Sinh Trong Phòng</h3>
+        <span id="playerCount" class="text-xs font-bold text-slate-400 bg-slate-800 px-2 py-1 rounded">0 Thí sinh</span>
+      </div>
+      <div id="playerList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <p class="text-slate-500 italic text-sm">Chưa có thí sinh nào tham gia...</p>
+      </div>
+    </section>
+
+    <!-- XEM DANH SÁCH REALTIME -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <section class="olympia-card p-4">
         <h4 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Thứ Tự Bấm Chuông Realtime</h4>
@@ -42,9 +58,9 @@
       </section>
 
       <section class="olympia-card p-4">
-        <h4 class="font-bold text-emerald-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Đáp Án Nhận Được (Sắp Xếp Theo Thời Gian)</h4>
+        <h4 class="font-bold text-emerald-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Tất Cả Đáp Án Của Thí Sinh</h4>
         <div id="adminAnswerList" class="space-y-2 text-sm max-h-80 overflow-y-auto">
-          <p class="text-slate-500 italic">Chưa nhận được câu trả lời...</p>
+          <p class="text-slate-500 italic">Chưa nhận được câu trả lời nào...</p>
         </div>
       </section>
     </div>
