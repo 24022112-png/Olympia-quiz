@@ -14,7 +14,7 @@ let isMuteChat = false;
 let isKicked = false;
 const pageLoadTime = Date.now();
 
-// Phát âm thanh chuông từ file MP3 trong thư mục sound/
+// Phát âm thanh chuông từ thư mục sound/buzzer.mp3
 function playBuzzerSound() {
   const audio = new Audio('sound/buzzer.mp3');
   audio.currentTime = 0;
