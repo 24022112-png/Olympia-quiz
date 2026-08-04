@@ -1,3 +1,4 @@
+// Cấu hình Firebase
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -8,7 +9,7 @@ const firebaseConfig = {
   appId: "YOUR_APP_ID"
 };
 
-// Khởi tạo Firebase
+// Khởi tạo Firebase SDK v8
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
