@@ -10,7 +10,38 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-6 pb-12">
-  <div class="max-w-5xl mx-auto space-y-6">
+
+  <!-- ================= MODAL ĐĂNG NHẬP ADMIN ================= -->
+  <div id="authModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-sm w-full space-y-5 text-center shadow-2xl">
+      <div class="w-16 h-16 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto text-2xl font-black">
+        🔐
+      </div>
+      <div>
+        <h2 class="text-xl font-black text-amber-400">XÁC NHẬN ADMIN</h2>
+        <p class="text-xs text-slate-400 mt-1">Nhập mật khẩu quản trị viên để tiếp tục</p>
+      </div>
+
+      <div class="space-y-3">
+        <input id="adminPasswordInput" type="password" placeholder="Nhập mật khẩu..." 
+          onkeydown="if(event.key === 'Enter') loginAdmin()"
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 text-center tracking-widest">
+        
+        <p id="authErrorNotice" class="text-xs text-red-500 font-bold min-h-[16px]"></p>
+
+        <button onclick="loginAdmin()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-sm transition shadow-lg shadow-amber-500/10">
+          ĐĂNG NHẬP
+        </button>
+      </div>
+
+      <a href="index.html" class="block text-xs text-slate-500 hover:text-slate-400 transition">
+        ← Quay lại trang chủ
+      </a>
+    </div>
+  </div>
+
+  <!-- ================= GIAO DIỆN QUẢN TRỊ (MẶC ĐỊNH ẨN) ================= -->
+  <div id="adminContent" class="max-w-5xl mx-auto space-y-6 hidden">
 
     <!-- HEADER ADMIN -->
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-center shadow-lg">
@@ -18,8 +49,13 @@
         <h1 class="text-xl font-black text-amber-400">BẢNG QUẢN TRỊ OLYMPIA</h1>
         <p class="text-xs text-slate-400">Đồng bộ chuông & quản lý thí sinh thời gian thực</p>
       </div>
-      <div id="statusBadge" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30">
-        🔒 CHUÔNG ĐANG KHÓA
+      <div class="flex items-center gap-3">
+        <div id="statusBadge" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30">
+          🔒 CHUÔNG ĐANG KHÓA
+        </div>
+        <button onclick="logoutAdmin()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-lg transition">
+          🚪 Đăng xuất
+        </button>
       </div>
     </div>
 
