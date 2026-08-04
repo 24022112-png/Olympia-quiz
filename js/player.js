@@ -1,4 +1,5 @@
-// js/player.js
+// Khai báo file âm thanh buzzer chuẩn
+const buzzerAudio = new Audio('sound/buzzer.mp3');
 
 // 1. Khởi tạo ID thí sinh
 let playerId = localStorage.getItem('olympia_player_id');
@@ -34,13 +35,11 @@ function registerPlayer() {
     db.ref('players').once('value', (pSnapshot) => {
       const players = pSnapshot.val() || {};
 
-      // Kiểm tra giới hạn số người
       if (players[playerId] === undefined && maxPlayers > 0 && Object.keys(players).length >= maxPlayers) {
         alert(`Phòng đã đầy! Giới hạn tối đa là ${maxPlayers} thí sinh.`);
         return;
       }
 
-      // Đăng ký thông tin mới
       db.ref(`players/${playerId}`).update({
         name: playerName,
         lastOnline: Date.now(),
@@ -51,41 +50,36 @@ function registerPlayer() {
         db.ref(`players/${playerId}/score`).set(0);
       }
 
-      // Bắt đầu lắng nghe trạng thái cá nhân
       listenToPlayerState();
     });
   });
 }
 
-// 3. Lắng nghe Trạng thái Thí Sinh (Đuổi, Điểm, Cấm)
+// 3. Lắng nghe Trạng thái Thí Sinh (KICK 1 LẦN VĂNG RA NHẬP TÊN LẠI)
 function listenToPlayerState() {
-  db.ref(`players/${playerId}`).off(); // Tắt listener cũ nếu có
+  db.ref(`players/${playerId}`).off();
 
   db.ref(`players/${playerId}`).on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
 
-    // XỬ LÝ ĐUỔI THÍ SINH (KICK 1 LẦN - VĂNG VỀ MÀN HÌNH NHẬP TÊN)
+    // XỬ LÝ KICK 1 LẦN
     if (data.kicked === true) {
-      // Tắt kết nối cũ & dọn dẹp data trên Firebase
       db.ref(`players/${playerId}`).off();
       db.ref(`players/${playerId}`).remove();
 
-      // Xóa thông tin cũ khỏi bộ nhớ trình duyệt
       localStorage.removeItem('olympia_player_id');
       localStorage.removeItem('olympia_player_name');
 
-      // Tạo ID mới tinh cho lần chơi tiếp theo
+      // Tạo ID mới để cho phép nhập tên chơi tiếp
       playerId = 'player_' + Math.random().toString(36).substr(2, 9);
       localStorage.setItem('olympia_player_id', playerId);
       playerName = '';
 
-      // Cập nhật lại giao diện
       if (userDisplay) userDisplay.innerText = 'Chưa nhập tên';
       if (playerNameDisplay) playerNameDisplay.innerText = 'CHƯA NHẬP TÊN';
       if (playerScoreDisplay) playerScoreDisplay.innerText = '0';
 
-      // Thông báo và mở Modal đặt tên
       alert('Bạn đã bị Admin mời ra khỏi phòng thi!');
       const modal = document.getElementById('nicknameModal');
       const input = document.getElementById('nicknameInput');
@@ -97,7 +91,6 @@ function listenToPlayerState() {
     isMuteBuzzer = data.muteBuzzer ?? false;
     isMuteChat = data.muteChat ?? false;
 
-    // Cập nhật điểm số
     if (playerScoreDisplay) {
       playerScoreDisplay.innerText = data.score !== undefined ? data.score : 0;
     }
@@ -126,7 +119,7 @@ function changeNickname() {
   document.getElementById('nicknameModal').classList.remove('hidden');
 }
 
-// 5. Theo dõi trạng thái Khóa/Mở chuông từ Admin
+// 5. Khóa/Mở Chuông từ Admin
 db.ref('settings/locked').on('value', (snapshot) => {
   isLocked = snapshot.val() ?? true;
   updateBuzzerUI();
@@ -167,9 +160,14 @@ function updateChatUI() {
   }
 }
 
-// 6. Thao tác Chuông & Trả lời
+// 6. PHÁT ÂM THANH BUZZER VÀ GỬI TÍN HIỆU
 function triggerBuzzer() {
   if (isLocked || isMuteBuzzer) return;
+
+  // Phát file sound/buzzer.mp3 ngay lập tức
+  buzzerAudio.currentTime = 0;
+  buzzerAudio.play().catch(err => console.warn('Lỗi phát âm thanh:', err));
+
   db.ref(`buzzers/${playerId}`).set({
     name: playerName,
     timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -189,28 +187,16 @@ function submitAnswer() {
   input.value = '';
 }
 
-// 7. ÂM THANH & Bảng Bấm Chuông Realtime
-let playerFirstLoad = true;
-let playerPrevBuzzerCount = 0;
-
+// 7. Bảng Bấm Chuông Realtime
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const queue = document.getElementById('buzzerQueue');
   if (!queue) return;
   queue.innerHTML = '';
-  const currentCount = snapshot.numChildren();
 
   if (!snapshot.exists()) {
     queue.innerHTML = '<li class="text-slate-500 italic text-xs">Chưa có ai bấm...</li>';
-    playerPrevBuzzerCount = 0;
-    playerFirstLoad = false;
     return;
   }
-
-  if (!playerFirstLoad && currentCount > playerPrevBuzzerCount) {
-    new Audio('sound/buzzer.mp3').play().catch(e => console.warn('Bị chặn Audio:', e));
-  }
-  playerPrevBuzzerCount = currentCount;
-  playerFirstLoad = false;
 
   let rank = 1;
   snapshot.forEach((child) => {
