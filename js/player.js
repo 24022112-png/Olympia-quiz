@@ -1,6 +1,4 @@
 // js/player.js
-
-// 1. Khởi tạo & Lấy ID Thí sinh
 let playerId = localStorage.getItem('olympia_player_id');
 if (!playerId) {
   playerId = 'player_' + Math.random().toString(36).substr(2, 9);
@@ -11,41 +9,40 @@ let playerName = localStorage.getItem('olympia_player_name') || '';
 let isLocked = true;
 let isMuteBuzzer = false;
 let isMuteChat = false;
-let isKicked = false;
 
-// Hiển thị tên thí sinh hiện tại
 const userDisplay = document.getElementById('userDisplay');
-if (userDisplay) userDisplay.innerText = playerName || 'Chưa nhập';
+const playerNameDisplay = document.getElementById('playerNameDisplay');
+const playerScoreDisplay = document.getElementById('playerScoreDisplay');
 
-// Hiển thị Modal nhập tên nếu chưa có
+if (userDisplay) userDisplay.innerText = playerName || 'Chưa nhập';
+if (playerNameDisplay) playerNameDisplay.innerText = playerName || 'CHƯA NHẬP TÊN';
+
 if (!playerName) {
-  const modal = document.getElementById('nicknameModal');
-  if (modal) modal.classList.remove('hidden');
+  document.getElementById('nicknameModal').classList.remove('hidden');
 } else {
   registerPlayer();
 }
 
-// 2. Đăng ký/Cập nhật Thí sinh lên Firebase
 function registerPlayer() {
   if (!playerName) return;
-
   db.ref('settings/maxPlayers').once('value', (snapshot) => {
     const maxPlayers = snapshot.val() || 0;
-
     db.ref('players').once('value', (pSnapshot) => {
       const players = pSnapshot.val() || {};
-      const currentKeys = Object.keys(players);
-      const isAlreadyIn = players[playerId] !== undefined;
-
-      if (!isAlreadyIn && maxPlayers > 0 && currentKeys.length >= maxPlayers) {
+      if (players[playerId] === undefined && maxPlayers > 0 && Object.keys(players).length >= maxPlayers) {
         alert(`Phòng đã đầy! Giới hạn tối đa là ${maxPlayers} thí sinh.`);
         return;
       }
-
+      // Ghi đè hoặc cập nhật user (set score = 0 nếu là user mới)
       db.ref(`players/${playerId}`).update({
         name: playerName,
-        lastOnline: Date.now()
+        lastOnline: Date.now(),
+        kicked: false
       });
+      // Nếu chưa có điểm, đặt điểm bằng 0
+      if (!players[playerId] || players[playerId].score === undefined) {
+        db.ref(`players/${playerId}/score`).set(0);
+      }
     });
   });
 }
@@ -53,47 +50,47 @@ function registerPlayer() {
 function saveNickname() {
   const input = document.getElementById('nicknameInput');
   const val = input ? input.value.trim() : '';
-  if (!val) {
-    alert('Vui lòng nhập tên của bạn!');
-    return;
-  }
+  if (!val) return alert('Vui lòng nhập tên của bạn!');
+  
   playerName = val;
   localStorage.setItem('olympia_player_name', playerName);
   if (userDisplay) userDisplay.innerText = playerName;
+  if (playerNameDisplay) playerNameDisplay.innerText = playerName;
 
-  const modal = document.getElementById('nicknameModal');
-  if (modal) modal.classList.add('hidden');
-
+  document.getElementById('nicknameModal').classList.add('hidden');
   registerPlayer();
 }
 
 function changeNickname() {
-  const modal = document.getElementById('nicknameModal');
-  if (modal) modal.classList.remove('hidden');
+  document.getElementById('nicknameModal').classList.remove('hidden');
 }
 
-// 3. Theo dõi trạng thái Chuông từ Admin
+// Theo dõi trạng thái Chuông từ Admin
 db.ref('settings/locked').on('value', (snapshot) => {
   isLocked = snapshot.val() ?? true;
   updateBuzzerUI();
 });
 
-// 4. Theo dõi thông tin cá nhân (Cấm chuông / Cấm chat / Bị kick)
+// Theo dõi thông tin cá nhân (Điểm, Cấm chuông/chat, Đuổi)
 db.ref(`players/${playerId}`).on('value', (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
 
+  // XỬ LÝ ĐUỔI THÍ SINH (VĂNG RA MÀN HÌNH NHẬP TÊN)
+  if (data.kicked === true) {
+    localStorage.removeItem('olympia_player_id');
+    localStorage.removeItem('olympia_player_name');
+    alert('Bạn đã bị Admin mời ra khỏi phòng thi!');
+    window.location.reload(); // Tải lại trang ngay lập tức
+    return;
+  }
+
   isMuteBuzzer = data.muteBuzzer ?? false;
   isMuteChat = data.muteChat ?? false;
-  isKicked = data.kicked ?? false;
-
-  const kickedModal = document.getElementById('kickedModal');
-  if (kickedModal) {
-    if (isKicked) {
-      kickedModal.classList.remove('hidden');
-    } else {
-      kickedModal.classList.add('hidden');
-    }
+  
+  // Cập nhật điểm số
+  if (playerScoreDisplay) {
+    playerScoreDisplay.innerText = data.score !== undefined ? data.score : 0;
   }
 
   updateBuzzerUI();
@@ -105,11 +102,7 @@ function updateBuzzerUI() {
   const notice = document.getElementById('buzzerNotice');
   if (!btn || !notice) return;
 
-  if (isKicked) {
-    btn.disabled = true;
-    notice.innerText = '🚫 BẠN ĐÃ BỊ ĐUỔI KHỎI PHÒNG';
-    notice.className = 'mt-4 text-xs text-red-500 font-bold';
-  } else if (isMuteBuzzer) {
+  if (isMuteBuzzer) {
     btn.disabled = true;
     notice.innerText = '🔇 BẠN ĐÃ BỊ CẤM BẤM CHUÔNG';
     notice.className = 'mt-4 text-xs text-yellow-500 font-bold';
@@ -128,56 +121,61 @@ function updateChatUI() {
   const input = document.getElementById('answerInput');
   const btn = document.getElementById('sendBtn');
   const notice = document.getElementById('chatNotice');
-  if (!input || !btn) return;
-
-  if (isMuteChat || isKicked) {
-    input.disabled = true;
-    btn.disabled = true;
-    if (notice) notice.innerText = '🔇 Bạn đã bị cấm gửi câu trả lời';
+  if (isMuteChat) {
+    if(input) input.disabled = true;
+    if(btn) btn.disabled = true;
+    if(notice) notice.innerText = '🔇 Bạn đã bị cấm gửi câu trả lời';
   } else {
-    input.disabled = false;
-    btn.disabled = false;
-    if (notice) notice.innerText = '';
+    if(input) input.disabled = false;
+    if(btn) btn.disabled = false;
+    if(notice) notice.innerText = '';
   }
 }
 
-// 5. Thao tác Bấm Chuông
 function triggerBuzzer() {
-  if (isLocked || isMuteBuzzer || isKicked) return;
-
+  if (isLocked || isMuteBuzzer) return;
   db.ref(`buzzers/${playerId}`).set({
     name: playerName,
     timestamp: firebase.database.ServerValue.TIMESTAMP
   });
 }
 
-// 6. Thao tác Gửi Câu Trả Lời
 function submitAnswer() {
   const input = document.getElementById('answerInput');
-  if (!input) return;
-  const text = input.value.trim();
-  if (!text || isMuteChat || isKicked) return;
-
+  const text = input ? input.value.trim() : '';
+  if (!text || isMuteChat) return;
   db.ref('answers').push({
     playerId: playerId,
     name: playerName,
     text: text,
     timestamp: firebase.database.ServerValue.TIMESTAMP
   });
-
   input.value = '';
 }
 
-// 7. Lắng nghe Danh sách Bấm Chuông Realtime
+// ÂM THANH & Danh sách Chuông Realtime
+let playerFirstLoad = true;
+let playerPrevBuzzerCount = 0;
+
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const queue = document.getElementById('buzzerQueue');
   if (!queue) return;
   queue.innerHTML = '';
+  const currentCount = snapshot.numChildren();
 
   if (!snapshot.exists()) {
     queue.innerHTML = '<li class="text-slate-500 italic text-xs">Chưa có ai bấm...</li>';
+    playerPrevBuzzerCount = 0;
+    playerFirstLoad = false;
     return;
   }
+
+  // Phát âm thanh khi có người mới bấm chuông
+  if (!playerFirstLoad && currentCount > playerPrevBuzzerCount) {
+    new Audio('sound/buzzer.mp3').play().catch(e => console.warn('Bị chặn Audio:', e));
+  }
+  playerPrevBuzzerCount = currentCount;
+  playerFirstLoad = false;
 
   let rank = 1;
   snapshot.forEach((child) => {
@@ -190,17 +188,10 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// 8. Lắng nghe Nhật ký Trả lời của cá nhân
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const stream = document.getElementById('answerStream');
   if (!stream) return;
   stream.innerHTML = '';
-
-  if (!snapshot.exists()) {
-    stream.innerHTML = '<p class="text-slate-500 italic text-xs">Chưa gửi câu trả lời nào...</p>';
-    return;
-  }
-
   let count = 0;
   snapshot.forEach((child) => {
     const data = child.val();
@@ -212,10 +203,7 @@ db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
       stream.prepend(item);
     }
   });
-
-  if (count === 0) {
-    stream.innerHTML = '<p class="text-slate-500 italic text-xs">Chưa gửi câu trả lời nào...</p>';
-  }
+  if (count === 0) stream.innerHTML = '<p class="text-slate-500 italic text-xs">Chưa gửi câu trả lời nào...</p>';
 });
 
 function escapeHtml(str) {
