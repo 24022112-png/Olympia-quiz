@@ -1,4 +1,48 @@
+// Mật khẩu Admin cố định
+const ADMIN_PASSWORD = "20032006";
+
+// Kiểm tra quyền đăng nhập khi tải trang
+document.addEventListener("DOMContentLoaded", () => {
+  initAuthCheck();
+});
+
+function initAuthCheck() {
+  const isAuthenticated = sessionStorage.getItem("olympia_admin_auth") === "true";
+  const loginModal = document.getElementById("loginModal");
+  const app = document.getElementById("app");
+  const template = document.getElementById("adminContent");
+
+  if (isAuthenticated && template && app) {
+    if (loginModal) loginModal.classList.add("hidden");
+    app.innerHTML = "";
+    app.appendChild(template.content.cloneNode(true));
+    startFirebaseListeners();
+  } else {
+    if (loginModal) loginModal.classList.remove("hidden");
+  }
+}
+
+function handleAdminLogin() {
+  const passwordInput = document.getElementById("adminPasswordInput");
+  const errorMsg = document.getElementById("loginError");
+  const pwd = passwordInput ? passwordInput.value : "";
+
+  if (pwd === ADMIN_PASSWORD) {
+    sessionStorage.setItem("olympia_admin_auth", "true");
+    if (errorMsg) errorMsg.classList.add("hidden");
+    initAuthCheck();
+  } else {
+    if (errorMsg) errorMsg.classList.remove("hidden");
+  }
+}
+
+function adminLogout() {
+  sessionStorage.removeItem("olympia_admin_auth");
+  window.location.reload();
+}
+
 function startFirebaseListeners() {
+  // Lắng nghe Trạng thái Khóa/Mở chuông
   db.ref('settings/locked').on('value', (snapshot) => {
     const isLocked = snapshot.val() ?? true;
     const badge = document.getElementById('statusBadge');
@@ -13,12 +57,13 @@ function startFirebaseListeners() {
     }
   });
 
+  // Lắng nghe Giới hạn người chơi
   db.ref('settings/maxPlayers').on('value', (snapshot) => {
     const input = document.getElementById('maxPlayersInput');
     if (input) input.value = snapshot.val() || 0;
   });
 
-  // ÂM THANH & Danh sách Chuông Admin
+  // Lắng nghe Danh sách Bấm chuông Realtime + Âm thanh
   let adminFirstLoad = true;
   let adminPrevBuzzerCount = 0;
 
@@ -31,7 +76,7 @@ function startFirebaseListeners() {
 
     if (!snapshot.exists()) {
       list.innerHTML = '<li class="text-slate-500 italic text-xs">Chưa có tín hiệu chuông nào...</li>';
-      if(countBadge) countBadge.innerText = '0';
+      if (countBadge) countBadge.innerText = '0';
       adminPrevBuzzerCount = 0;
       adminFirstLoad = false;
       return;
@@ -54,10 +99,10 @@ function startFirebaseListeners() {
       list.appendChild(item);
       rank++;
     });
-    if(countBadge) countBadge.innerText = String(rank - 1);
+    if (countBadge) countBadge.innerText = String(rank - 1);
   });
 
-  // Quản lý Thí Sinh (Thêm chức năng Cộng/Trừ điểm)
+  // Lắng nghe Quản lý Thí Sinh (Điểm, Cấm, Đuổi)
   db.ref('players').on('value', (snapshot) => {
     const tbody = document.getElementById('playerTableBody');
     const countBadge = document.getElementById('playerCount');
@@ -66,7 +111,7 @@ function startFirebaseListeners() {
 
     if (!snapshot.exists()) {
       tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-500 italic">Chưa có thí sinh nào vào phòng...</td></tr>';
-      if(countBadge) countBadge.innerText = '0 thí sinh';
+      if (countBadge) countBadge.innerText = '0 thí sinh';
       return;
     }
 
@@ -74,7 +119,7 @@ function startFirebaseListeners() {
     snapshot.forEach((child) => {
       const key = child.key;
       const p = child.val();
-      if (p.kicked) return; // Ẩn những người đã bị đuổi khỏi bảng
+      if (p.kicked) return;
 
       total++;
       const currentScore = p.score || 0;
@@ -83,7 +128,6 @@ function startFirebaseListeners() {
       row.innerHTML = `
         <td class="p-2 font-semibold text-slate-200">${escapeHtml(p.name)}</td>
         
-        <!-- Ô ĐIỀU CHỈNH ĐIỂM SỐ -->
         <td class="p-2 text-center flex items-center justify-center gap-1">
           <button onclick="updateScore('${key}', ${currentScore - 10})" class="bg-slate-700 hover:bg-slate-600 px-1.5 rounded text-white">-</button>
           <span class="font-black text-amber-400 w-8">${currentScore}</span>
@@ -106,9 +150,10 @@ function startFirebaseListeners() {
       `;
       tbody.appendChild(row);
     });
-    if(countBadge) countBadge.innerText = `${total} thí sinh`;
+    if (countBadge) countBadge.innerText = `${total} thí sinh`;
   });
 
+  // Lắng nghe Câu Trả Lời Realtime
   db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
     const stream = document.getElementById('adminAnswerStream');
     if (!stream) return;
@@ -128,25 +173,18 @@ function startFirebaseListeners() {
   });
 }
 
+// Các hàm thao tác điều khiển Admin
 function setBuzzerLock(status) { db.ref('settings/locked').set(status); }
 function clearBuzzers() { db.ref('buzzers').remove(); }
 function clearAnswers() { db.ref('answers').remove(); }
 function updateMaxPlayers() { db.ref('settings/maxPlayers').set(parseInt(document.getElementById('maxPlayersInput').value) || 0); alert('Đã cập nhật!'); }
-
-// Hàm Cập nhật điểm cho Thí sinh
-function updateScore(id, newScore) {
-  db.ref(`players/${id}/score`).set(newScore);
-}
-
+function updateScore(id, newScore) { db.ref(`players/${id}/score`).set(newScore); }
 function toggleMuteBuzzer(id, status) { db.ref(`players/${id}/muteBuzzer`).set(status); }
 function toggleMuteChat(id, status) { db.ref(`players/${id}/muteChat`).set(status); }
-
-// Hàm Đuổi người chơi (Set cờ kicked)
 function kickPlayer(id) {
-  if (confirm('Bạn có chắc chắn muốn mời thí sinh này ra khỏi phòng? (Họ sẽ bị đẩy về màn hình nhập tên)')) {
+  if (confirm('Mời thí sinh này ra khỏi phòng?')) {
     db.ref(`players/${id}/kicked`).set(true);
   }
 }
 
 function escapeHtml(str) { return String(str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
-initAuthCheck();
