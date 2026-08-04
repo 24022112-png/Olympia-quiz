@@ -12,9 +12,15 @@ let previousLockState = true;
 let isMuteBuzzer = false;
 let isMuteChat = false;
 let isKicked = false;
+let maxPlayers = 0; // 0: không giới hạn
+let currentPlayersCount = 0;
+let isPlayerRegistered = false;
 const pageLoadTime = Date.now();
 
-// Phát âm thanh chuông từ thư mục sound/buzzer.mp3
+// Link Google Sheet dạng CSV
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1ngiCqrQWG_2Mz93NtBoRP2bDm3DtYmZSX0VnlOqMplQ/export?format=csv&gid=0';
+
+// Phát âm thanh chuông
 function playBuzzerSound() {
   const audio = new Audio('sound/buzzer.mp3');
   audio.currentTime = 0;
@@ -31,6 +37,19 @@ function registerPlayerToFirebase() {
   });
 }
 
+// Lắng nghe cấu hình giới hạn số người chơi từ Admin
+db.ref('settings/maxPlayers').on('value', (snapshot) => {
+  maxPlayers = snapshot.val() || 0;
+  updateMaxPlayerNotice();
+});
+
+function updateMaxPlayerNotice() {
+  const notice = document.getElementById('maxPlayerNotice');
+  if (notice) {
+    notice.innerText = maxPlayers > 0 ? `(Giới hạn: ${currentPlayersCount}/${maxPlayers} người)` : '';
+  }
+}
+
 if (nickname) {
   document.getElementById('nicknameModal').classList.add('hidden');
   document.getElementById('userDisplay').innerText = nickname;
@@ -40,6 +59,12 @@ if (nickname) {
 function saveNickname() {
   const input = document.getElementById('nicknameInput').value.trim();
   if (!input) return alert('Vui lòng nhập biệt danh!');
+  
+  // Kiểm tra nếu đã đủ giới hạn người chơi và đây là người chơi mới
+  if (maxPlayers > 0 && currentPlayersCount >= maxPlayers && !isPlayerRegistered) {
+    return alert(`Phòng đã đủ số lượng người chơi tối đa (${maxPlayers} người)!`);
+  }
+
   nickname = input;
   localStorage.setItem('olympia_nickname', nickname);
   document.getElementById('userDisplay').innerText = nickname;
@@ -52,7 +77,20 @@ function changeNickname() {
   document.getElementById('nicknameModal').classList.remove('hidden');
 }
 
-// Lắng nghe trạng thái riêng của thí sinh này từ Admin (Chặn/Đuổi)
+// Lắng nghe toàn bộ thí sinh để đếm số lượng
+db.ref('players').on('value', (snapshot) => {
+  if (snapshot.exists()) {
+    const players = snapshot.val();
+    currentPlayersCount = Object.keys(players).length;
+    isPlayerRegistered = !!players[playerId];
+  } else {
+    currentPlayersCount = 0;
+    isPlayerRegistered = false;
+  }
+  updateMaxPlayerNotice();
+});
+
+// Lắng nghe trạng thái riêng của thí sinh này
 db.ref('players/' + playerId).on('value', (snapshot) => {
   if (!snapshot.exists()) return;
   const data = snapshot.val();
@@ -197,7 +235,7 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// Lắng nghe tin nhắn (CHỈ HIỂN THỊ TIN NHẮN CỦA MÌNH)
+// Lắng nghe tin nhắn cá nhân
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('answerStream');
   list.innerHTML = '';
@@ -227,3 +265,66 @@ db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
     list.innerHTML = '<p class="text-slate-500 italic">Chưa có câu trả lời nào của bạn...</p>';
   }
 });
+
+// --- CHỨC NĂNG BẢNG XẾP HẠNG TỪ GOOGLE SHEET ---
+async function loadLeaderboard() {
+  const container = document.getElementById('leaderboardBody');
+  if (!container) return;
+
+  try {
+    const res = await fetch(SHEET_CSV_URL + '&t=' + Date.now());
+    const csvText = await res.text();
+    
+    // Tách dòng và tách ô CSV
+    const rows = csvText.split('\n').map(row => 
+      row.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1').trim())
+    );
+
+    if (rows.length < 6) return;
+
+    const headers = rows[0]; // Nhóm 1, Nhóm 2,...
+    const teams = [];
+
+    for (let col = 1; col < headers.length; col++) {
+      const name = headers[col];
+      if (!name) continue;
+
+      const khoiDong = parseInt(rows[1][col]) || 0;
+      const vcnv = parseInt(rows[2][col]) || 0;
+      const tangToc = parseInt(rows[3][col]) || 0;
+      const veDich = parseInt(rows[4][col]) || 0;
+      const tongDiem = parseInt(rows[5][col]) || 0;
+
+      teams.push({ name, khoiDong, vcnv, tangToc, veDich, tongDiem });
+    }
+
+    // Sắp xếp giảm dần theo Tổng điểm
+    teams.sort((a, b) => b.tongDiem - a.tongDiem);
+
+    container.innerHTML = '';
+    teams.forEach((team, index) => {
+      const isTop1 = index === 0;
+      const tr = document.createElement('tr');
+      tr.className = isTop1 
+        ? 'bg-yellow-950/60 border-b border-yellow-500/50 text-yellow-300 font-bold' 
+        : 'border-b border-slate-800 hover:bg-slate-800/50';
+
+      tr.innerHTML = `
+        <td class="p-2 text-center">${index + 1} ${isTop1 ? '👑' : ''}</td>
+        <td class="p-2 font-semibold text-left">${team.name}</td>
+        <td class="p-2 text-center text-slate-300">${team.khoiDong}</td>
+        <td class="p-2 text-center text-slate-300">${team.vcnv}</td>
+        <td class="p-2 text-center text-slate-300">${team.tangToc}</td>
+        <td class="p-2 text-center text-slate-300">${team.veDich}</td>
+        <td class="p-2 text-center font-bold text-emerald-400 text-base">${team.tongDiem}</td>
+      `;
+      container.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("Lỗi cập nhật bảng điểm:", err);
+  }
+}
+
+// Tự động tải bảng điểm mỗi 10 giây
+loadLeaderboard();
+setInterval(loadLeaderboard, 10000);
