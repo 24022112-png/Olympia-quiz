@@ -2,6 +2,12 @@
 const ADMIN_PASSWORD = "20032006";
 const adminBuzzerAudio = new Audio('sound/buzzer.mp3');
 
+// Cấu hình Google Sheet tham chiếu điểm
+const SHEET_ID = '1ngiCqrQWG_2Mz93NtBoRP2bDm3DtYmZSX0VnlOqMplQ';
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&range=B5:F6`;
+
+let sheetSyncInterval = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   initAuthCheck();
 });
@@ -17,6 +23,7 @@ function initAuthCheck() {
     app.innerHTML = "";
     app.appendChild(template.content.cloneNode(true));
     startFirebaseListeners();
+    startGoogleSheetSync(); // Bắt đầu tự động đọc điểm từ Google Sheet
   } else {
     if (loginModal) loginModal.classList.remove("hidden");
   }
@@ -37,8 +44,85 @@ function handleAdminLogin() {
 }
 
 function adminLogout() {
+  if (sheetSyncInterval) clearInterval(sheetSyncInterval);
   sessionStorage.removeItem("olympia_admin_auth");
   window.location.reload();
+}
+
+// HÀM ĐỒNG BỘ ĐIỂM TỪ GOOGLE SHEET (Ô B6 -> F6)
+async function syncScoresFromGoogleSheet() {
+  try {
+    const res = await fetch(SHEET_URL);
+    const text = await res.text();
+    const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+    const data = JSON.parse(jsonString);
+
+    const rows = data.table.rows;
+    if (!rows || rows.length === 0) return;
+
+    let sheetNames = [];
+    let sheetScores = [];
+
+    // Nếu đọc dải B5:F6 -> Hàng 0 là Tên (B5:F5), Hàng 1 là Điểm (B6:F6)
+    if (rows.length >= 2) {
+      sheetNames = rows[0].c ? rows[0].c.map(cell => cell ? String(cell.v || '').trim() : '') : [];
+      sheetScores = rows[1].c ? rows[1].c.map(cell => cell ? Number(cell.v || 0) : 0) : [];
+    } else {
+      // Nếu chỉ có 1 hàng B6:F6
+      sheetScores = rows[0].c ? rows[0].c.map(cell => cell ? Number(cell.v || 0) : 0) : [];
+    }
+
+    // Lấy danh sách thí sinh từ Firebase
+    const snapshot = await db.ref('players').once('value');
+    if (!snapshot.exists()) return;
+
+    const players = snapshot.val();
+    const playerKeys = Object.keys(players);
+
+    playerKeys.forEach((key, index) => {
+      const player = players[key];
+      if (player.kicked) return;
+
+      let newScore = null;
+
+      // 1. Ưu tiên khớp điểm theo Tên thí sinh (nếu hàng B5:F5 có điền tên)
+      if (sheetNames.length > 0) {
+        const matchIndex = sheetNames.findIndex(n => n && n.toLowerCase() === (player.name || '').trim().toLowerCase());
+        if (matchIndex !== -1) {
+          newScore = sheetScores[matchIndex];
+        }
+      }
+
+      // 2. Nếu không trùng tên, khớp theo thứ tự vào phòng (B6=Thí sinh 1, C6=Thí sinh 2, D6=Thí sinh 3, E6=Thí sinh 4, F6=Thí sinh 5)
+      if (newScore === null && index < sheetScores.length) {
+        newScore = sheetScores[index];
+      }
+
+      // Cập nhật điểm lên Firebase nếu có sự thay đổi
+      if (newScore !== null && !isNaN(newScore) && player.score !== newScore) {
+        db.ref(`players/${key}/score`).set(newScore);
+      }
+    });
+
+    const sheetStatus = document.getElementById('sheetSyncStatus');
+    if (sheetStatus) {
+      const now = new Date().toTimeString().split(' ')[0];
+      sheetStatus.innerText = `🟢 Đã đồng bộ Google Sheet B6:F6 lúc ${now}`;
+    }
+
+  } catch (err) {
+    console.warn('Lỗi lấy dữ liệu từ Google Sheet:', err);
+    const sheetStatus = document.getElementById('sheetSyncStatus');
+    if (sheetStatus) {
+      sheetStatus.innerText = '🔴 Lỗi kết nối Google Sheet (Kiểm tra quyền truy cập link)';
+    }
+  }
+}
+
+function startGoogleSheetSync() {
+  syncScoresFromGoogleSheet(); // Chạy ngay lần đầu
+  if (sheetSyncInterval) clearInterval(sheetSyncInterval);
+  sheetSyncInterval = setInterval(syncScoresFromGoogleSheet, 3000); // Tự động cập nhật mỗi 3 giây
 }
 
 function startFirebaseListeners() {
@@ -63,7 +147,7 @@ function startFirebaseListeners() {
     if (input) input.value = snapshot.val() || 0;
   });
 
-  // 3. Danh sách chuông bấm + Phát âm thanh buzzer.mp3 phía Admin
+  // 3. Danh sách chuông bấm Realtime
   let adminFirstLoad = true;
   let adminPrevBuzzerCount = 0;
 
@@ -84,7 +168,7 @@ function startFirebaseListeners() {
 
     if (!adminFirstLoad && currentCount > adminPrevBuzzerCount) {
       adminBuzzerAudio.currentTime = 0;
-      adminBuzzerAudio.play().catch(e => console.warn('Cần click trang Admin 1 lần để bật tiếng:', e));
+      adminBuzzerAudio.play().catch(e => console.warn('Bấm trang Admin 1 lần để bật tiếng:', e));
     }
     adminPrevBuzzerCount = currentCount;
     adminFirstLoad = false;
@@ -104,7 +188,7 @@ function startFirebaseListeners() {
     if (countBadge) countBadge.innerText = String(rank - 1);
   });
 
-  // 4. Quản lý Thí sinh & Điểm số
+  // 4. Bảng Thí sinh & Điểm số (Được đồng bộ từ Google Sheet)
   db.ref('players').on('value', (snapshot) => {
     const tbody = document.getElementById('playerTableBody');
     const countBadge = document.getElementById('playerCount');
@@ -132,7 +216,7 @@ function startFirebaseListeners() {
         
         <td class="p-2 text-center flex items-center justify-center gap-1">
           <button onclick="updateScore('${key}', ${currentScore - 10})" class="bg-slate-700 hover:bg-slate-600 px-1.5 rounded text-white">-</button>
-          <span class="font-black text-amber-400 w-8">${currentScore}</span>
+          <span class="font-black text-amber-400 w-12 text-sm">${currentScore}</span>
           <button onclick="updateScore('${key}', ${currentScore + 10})" class="bg-slate-700 hover:bg-slate-600 px-1.5 rounded text-white">+</button>
         </td>
 
@@ -155,7 +239,7 @@ function startFirebaseListeners() {
     if (countBadge) countBadge.innerText = `${total} thí sinh`;
   });
 
-  // 5. Nhật ký câu trả lời Realtime
+  // 5. Câu trả lời Realtime
   db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
     const stream = document.getElementById('adminAnswerStream');
     if (!stream) return;
@@ -175,7 +259,7 @@ function startFirebaseListeners() {
   });
 }
 
-// Các hàm thao tác Admin
+// Điều khiển Admin
 function setBuzzerLock(status) { db.ref('settings/locked').set(status); }
 function clearBuzzers() { db.ref('buzzers').remove(); }
 function clearAnswers() { db.ref('answers').remove(); }
