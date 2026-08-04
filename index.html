@@ -7,78 +7,112 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
   
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
-<body class="min-h-screen p-4 flex flex-col justify-between">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
 
-  <!-- MODAL BẮT BUỘC NHẬP BIỆT DANH -->
-  <div id="nicknameModal" class="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
-    <div class="olympia-card p-8 max-w-md w-full text-center space-y-4 border-2 border-yellow-500">
-      <h2 class="text-2xl font-black text-yellow-400 uppercase tracking-widest">ĐƯỜNG LÊN ĐỈNH OLYMPIA</h2>
-      <p class="text-slate-300 text-sm">Vui lòng nhập biệt danh để tham gia (Không cần đăng nhập):</p>
-      <input type="text" id="nicknameInput" placeholder="Nhập biệt danh của bạn..." class="w-full p-3 rounded bg-slate-900 border border-yellow-600 text-center text-lg font-bold focus:outline-none text-white">
-      <button onclick="saveNickname()" class="btn-action w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded uppercase tracking-wider transition">Vào Phòng Game</button>
+  <div class="w-full max-w-lg space-y-6">
+    <!-- Cảnh báo max player -->
+    <div id="maxPlayerNotice" class="text-center text-xs text-yellow-500 font-bold h-4"></div>
+
+    <!-- KHUNG ĐIỀU KHIỂN CHUÔNG -->
+    <div class="bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-800 text-center relative overflow-hidden">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-xl font-extrabold text-slate-100 uppercase tracking-wide">
+          HỆ THỐNG CHUÔNG
+        </h1>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-400">👤 <span id="userDisplay" class="font-bold text-amber-400">---</span></span>
+          <button onclick="changeNickname()" class="text-[10px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300">Đổi</button>
+        </div>
+      </div>
+
+      <button id="buzzerBtn" onclick="triggerBuzzer()" class="buzzer text-white font-black text-2xl uppercase tracking-widest relative" disabled>
+        BẤM CHUÔNG
+      </button>
+      <div id="buzzerNotice" class="mt-4 text-xs text-slate-400">Chuông hiện đang bị KHÓA</div>
     </div>
-  </div>
 
-  <!-- MODAL BỊ ĐUỔI KHỎI PHÒNG -->
-  <div id="kickedModal" class="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 hidden">
-    <div class="olympia-card p-8 max-w-md w-full text-center space-y-4 border-2 border-red-600 bg-red-950/80">
-      <div class="text-5xl">🚫</div>
-      <h2 class="text-2xl font-black text-red-500 uppercase tracking-widest">BẠN ĐÃ BỊ ĐUỔI</h2>
-      <p class="text-slate-200 text-sm">Quản trị viên đã đuổi bạn khỏi phòng chơi này.</p>
-      <button onclick="location.reload()" class="btn-action w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded uppercase tracking-wider transition">Tải Lại Trang</button>
+    <!-- KHUNG TRẢ LỜI CÂU HỎI -->
+    <div class="bg-slate-900 rounded-2xl p-5 shadow-2xl border border-slate-800">
+      <h2 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">💬 Câu Trả Lời</h2>
+      <div class="flex flex-col gap-2">
+        <div class="flex gap-2">
+          <input type="text" id="answerInput" placeholder="Nhập câu trả lời của bạn..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition">
+          <button id="sendBtn" onclick="submitAnswer()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-lg transition text-sm whitespace-nowrap shadow-lg shadow-emerald-900/50">
+            GỬI
+          </button>
+        </div>
+        <span id="chatNotice"></span>
+      </div>
     </div>
-  </div>
 
-  <!-- HEADER -->
-  <header class="max-w-5xl mx-auto w-full flex justify-between items-center bg-slate-950/80 p-4 rounded-xl border border-yellow-600/50 mb-6">
-    <div class="flex items-center gap-3">
-      <div class="bg-yellow-500 text-slate-950 px-3 py-1 font-black rounded text-lg">OLYMPIA</div>
-      <span id="userDisplay" class="font-bold text-yellow-400 text-base">---</span>
+    <!-- 2 CỘT: DANH SÁCH CHUÔNG & CÂU TRẢ LỜI CÁ NHÂN -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 flex flex-col h-64">
+        <h3 class="text-xs font-bold text-amber-400 mb-2 uppercase tracking-wider">🔔 Đã bấm chuông</h3>
+        <ul id="buzzerQueue" class="space-y-2 overflow-y-auto flex-1 pr-1 custom-scrollbar text-sm">
+          <li class="text-slate-500 italic text-xs">Chưa có ai bấm...</li>
+        </ul>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 flex flex-col h-64">
+        <h3 class="text-xs font-bold text-emerald-400 mb-2 uppercase tracking-wider">Lịch sử của bạn</h3>
+        <div id="answerStream" class="space-y-2 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+          <p class="text-slate-500 italic text-xs">Chưa có câu trả lời...</p>
+        </div>
+      </div>
     </div>
-    <button onclick="changeNickname()" class="btn-action text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded text-slate-300 border border-slate-600">Đổi Biệt Danh</button>
-  </header>
 
-  <main class="max-w-5xl mx-auto w-full space-y-6 flex-grow">
-    <!-- TÁC VỤ: BẤM CHUÔNG & CÂU TRẢ LỜI -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <section class="olympia-card p-6 flex flex-col items-center justify-center text-center">
-        <h3 class="text-lg font-bold text-yellow-400 uppercase mb-4 tracking-wider">Chuông Báo Tín Hiệu</h3>
-        <button id="buzzerBtn" onclick="triggerBuzzer()" class="buzzer-btn w-44 h-44 rounded-full border-4 border-yellow-400 font-black text-3xl tracking-widest text-white uppercase flex items-center justify-center">
-          BẤM!
+    <!-- BẢNG XẾP HẠNG THÍ SINH -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 shadow-xl">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold text-yellow-400 text-sm flex items-center gap-2">
+          🏆 BẢNG XẾP HẠNG ĐIỂM SỐ
+        </h3>
+        <button onclick="loadLeaderboard()" class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2 py-1 rounded">
+          🔄 Cập nhật
         </button>
-        <span id="buzzerNotice" class="mt-4 text-xs text-slate-400">Ấn nút để giành quyền trả lời</span>
-      </section>
-
-      <section class="olympia-card p-6 flex flex-col justify-between space-y-4">
-        <div>
-          <h3 class="text-lg font-bold text-yellow-400 uppercase mb-3 tracking-wider">Nhập Câu Trả Lời</h3>
-          <textarea id="answerInput" rows="4" placeholder="Gõ câu trả lời của bạn tại đây..." class="w-full p-3 bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-yellow-500 text-sm"></textarea>
-          <span id="chatNotice" class="text-xs text-slate-400 mt-1 block"></span>
-        </div>
-        <button id="sendBtn" onclick="submitAnswer()" class="btn-action w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded uppercase tracking-wider transition">Gửi Đến Admin</button>
-      </section>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left">
+          <thead class="uppercase bg-slate-800 text-slate-400 border-b border-slate-700">
+            <tr>
+              <th class="p-2 text-center w-12">Hạng</th>
+              <th class="p-2">Tên Nhóm</th>
+              <th class="p-2 text-center font-bold text-emerald-400">TỔNG ĐIỂM</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <tr><td colspan="3" class="text-center p-3 text-slate-500">Đang tải điểm...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
 
-    <!-- HIỂN THỊ REALTIME -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <section class="olympia-card p-4">
-        <h4 class="font-bold text-yellow-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Thứ Tự Bấm Chuông (Công Khai)</h4>
-        <ol id="buzzerQueue" class="space-y-2 text-sm min-h-[100px]">
-          <li class="text-slate-500 italic">Chưa có ai bấm chuông...</li>
-        </ol>
-      </section>
-
-      <section class="olympia-card p-4">
-        <h4 class="font-bold text-emerald-400 uppercase border-b border-slate-700 pb-2 mb-3 text-sm">Tin Nhắn Của Bạn</h4>
-        <div id="answerStream" class="space-y-2 text-sm max-h-56 overflow-y-auto">
-          <p class="text-slate-500 italic">Chưa có câu trả lời nào của bạn...</p>
-        </div>
-      </section>
+  <!-- MODAL ĐẶT TÊN -->
+  <div id="nicknameModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+      <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-wide">TÊN THÍ SINH</h2>
+      <p class="text-xs text-slate-400 mb-6">Vui lòng nhập tên hoặc biệt danh để tham gia hệ thống bấm chuông.</p>
+      <input type="text" id="nicknameInput" placeholder="VD: Nhóm 1, Quang Anh..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white text-center font-bold mb-4 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition">
+      <button onclick="saveNickname()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-lg uppercase tracking-widest transition shadow-lg shadow-amber-900/20">
+        VÀO PHÒNG
+      </button>
     </div>
-  </main>
+  </div>
+
+  <!-- MODAL BỊ ĐUỔI -->
+  <div id="kickedModal" class="fixed inset-0 bg-red-950/95 backdrop-blur-md flex items-center justify-center z-50 p-4 hidden">
+    <div class="bg-red-900/50 border border-red-500 p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center space-y-4">
+      <div class="text-6xl">⛔</div>
+      <h2 class="text-2xl font-black text-white uppercase tracking-wide">BẠN ĐÃ BỊ ĐUỔI</h2>
+      <p class="text-sm text-red-200">Quản trị viên đã mời bạn rời khỏi hệ thống chuông.</p>
+    </div>
+  </div>
 
   <script src="js/firebase-config.js"></script>
   <script src="js/player.js"></script>
