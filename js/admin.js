@@ -2,7 +2,7 @@
 const ADMIN_PASSWORD = "20032006";
 const adminBuzzerAudio = new Audio('sound/buzzer.mp3');
 
-// Link xuất dữ liệu CSV trực tiếp từ Google Sheet
+// Tham chiếu CSV trực tiếp từ Google Sheet
 const SHEET_ID = '1ngiCqrQWG_2Mz93NtBoRP2bDm3DtYmZSX0VnlOqMplQ';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 
@@ -23,7 +23,7 @@ function initAuthCheck() {
     app.innerHTML = "";
     app.appendChild(template.content.cloneNode(true));
     startFirebaseListeners();
-    startGoogleSheetSync(); // Bắt đầu đọc điểm từ Google Sheet
+    startGoogleSheetSync();
   } else {
     if (loginModal) loginModal.classList.remove("hidden");
   }
@@ -49,75 +49,57 @@ function adminLogout() {
   window.location.reload();
 }
 
-// HÀM ĐỌC ĐIỂM TỪ GOOGLE SHEET (HÀNG 6, CỘT B ĐẾN F)
+// ĐỒNG BỘ ĐIỂM NGẦM TỪ GOOGLE SHEET CHUYỂN THẲNG TỚI THÍ SINH (B6 -> F6)
 async function syncScoresFromGoogleSheet() {
   try {
-    // Thêm timestamp để tránh bị trình duyệt cache dữ liệu cũ
     const res = await fetch(`${CSV_URL}&_t=${Date.now()}`);
     if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
 
     const text = await res.text();
+    const lines = text.split(/\r?\n/).map(line => line.split(',').map(cell => cell.replace(/^"|"$/g, '').trim()));
 
-    // Tách các dòng trong file CSV
-    const lines = text.split(/\r?\n/).map(line => {
-      return line.split(',').map(cell => cell.replace(/^"|"$/g, '').trim());
-    });
-
-    // Hàng 5 (Index 4) là B5:F5 (Tên thí sinh nếu có)
-    // Hàng 6 (Index 5) là B6:F6 (Điểm thí sinh)
-    const row5 = lines[4] || [];
+    // Hàng 6 tương ứng Index 5
     const row6 = lines[5] || [];
 
-    // Lấy cột B đến F (Index 1 đến 5)
-    const sheetNames = row5.slice(1, 6);
+    // Lấy giá trị các ô B6, C6, D6, E6, F6 (Index 1 -> 5)
     const sheetScores = row6.slice(1, 6).map(val => {
       const num = Number(val);
       return isNaN(num) ? 0 : num;
     });
 
-    // Cập nhật lên Firebase
     const snapshot = await db.ref('players').once('value');
     if (!snapshot.exists()) return;
 
-    const players = snapshot.val();
-    const playerKeys = Object.keys(players);
+    const playersData = snapshot.val();
 
-    playerKeys.forEach((key, index) => {
-      const player = players[key];
-      if (player.kicked) return;
+    // Sắp xếp thứ tự thí sinh theo thời gian gia nhập (joinedAt)
+    const sortedPlayers = Object.keys(playersData)
+      .map(key => ({ key, ...playersData[key] }))
+      .filter(p => !p.kicked)
+      .sort((a, b) => (a.joinedAt || a.lastOnline || 0) - (b.joinedAt || b.lastOnline || 0));
 
-      let newScore = null;
-
-      // 1. Khớp theo Tên nếu dòng 5 có tên trùng khớp
-      if (sheetNames.length > 0) {
-        const matchIndex = sheetNames.findIndex(n => n && n.toLowerCase() === (player.name || '').trim().toLowerCase());
-        if (matchIndex !== -1) {
-          newScore = sheetScores[matchIndex];
+    // Gán điểm trực tiếp cho từng người: Người 1 -> B6, Người 2 -> C6, Người 3 -> D6, Người 4 -> E6, Người 5 -> F6
+    sortedPlayers.forEach((player, index) => {
+      if (index < sheetScores.length) {
+        const targetScore = sheetScores[index];
+        if (player.score !== targetScore) {
+          db.ref(`players/${player.key}/score`).set(targetScore);
         }
-      }
-
-      // 2. Khớp theo thứ tự vào phòng (Người 1 -> B6, Người 2 -> C6, Người 3 -> D6, Người 4 -> E6, Người 5 -> F6)
-      if (newScore === null && index < sheetScores.length) {
-        newScore = sheetScores[index];
-      }
-
-      if (newScore !== null && player.score !== newScore) {
-        db.ref(`players/${key}/score`).set(newScore);
       }
     });
 
     const sheetStatus = document.getElementById('sheetSyncStatus');
     if (sheetStatus) {
       const now = new Date().toLocaleTimeString();
-      sheetStatus.innerText = `🟢 Đã nhận điểm từ Sheet B6:F6 [${sheetScores.join(', ')}] lúc ${now}`;
+      sheetStatus.innerText = `🟢 Đã tham chiếu B6:F6 [${sheetScores.join(', ')}] lúc ${now}`;
       sheetStatus.className = "text-[11px] text-emerald-400 font-mono mt-1 font-bold";
     }
 
   } catch (err) {
-    console.error('Lỗi đọc Google Sheet:', err);
+    console.error('Lỗi lấy điểm Google Sheet:', err);
     const sheetStatus = document.getElementById('sheetSyncStatus');
     if (sheetStatus) {
-      sheetStatus.innerText = '🔴 Không thể đọc Google Sheet! Hãy kiểm tra quyền "Bất kỳ ai có liên kết".';
+      sheetStatus.innerText = '🔴 Lỗi đọc Google Sheet! Hãy kiểm tra lại quyền Chia sẻ.';
       sheetStatus.className = "text-[11px] text-red-400 font-mono mt-1 font-bold";
     }
   }
@@ -126,11 +108,11 @@ async function syncScoresFromGoogleSheet() {
 function startGoogleSheetSync() {
   syncScoresFromGoogleSheet();
   if (sheetSyncInterval) clearInterval(sheetSyncInterval);
-  sheetSyncInterval = setInterval(syncScoresFromGoogleSheet, 2000); // Tự động đọc lại mỗi 2 giây
+  sheetSyncInterval = setInterval(syncScoresFromGoogleSheet, 2000);
 }
 
 function startFirebaseListeners() {
-  // 1. Trạng thái Khóa/Mở chuông
+  // 1. Khóa/Mở chuông
   db.ref('settings/locked').on('value', (snapshot) => {
     const isLocked = snapshot.val() ?? true;
     const badge = document.getElementById('statusBadge');
@@ -145,13 +127,13 @@ function startFirebaseListeners() {
     }
   });
 
-  // 2. Giới hạn số thí sinh
+  // 2. Max players
   db.ref('settings/maxPlayers').on('value', (snapshot) => {
     const input = document.getElementById('maxPlayersInput');
     if (input) input.value = snapshot.val() || 0;
   });
 
-  // 3. Danh sách chuông bấm Realtime
+  // 3. Chuông bấm Realtime
   let adminFirstLoad = true;
   let adminPrevBuzzerCount = 0;
 
@@ -172,7 +154,7 @@ function startFirebaseListeners() {
 
     if (!adminFirstLoad && currentCount > adminPrevBuzzerCount) {
       adminBuzzerAudio.currentTime = 0;
-      adminBuzzerAudio.play().catch(e => console.warn('Bấm vào giao diện Admin 1 lần để phát âm thanh:', e));
+      adminBuzzerAudio.play().catch(e => console.warn('Bấm Admin 1 lần để bật tiếng:', e));
     }
     adminPrevBuzzerCount = currentCount;
     adminFirstLoad = false;
@@ -192,7 +174,7 @@ function startFirebaseListeners() {
     if (countBadge) countBadge.innerText = String(rank - 1);
   });
 
-  // 4. Bảng Thí sinh (Cập nhật tự động từ Google Sheet)
+  // 4. Bảng Thí sinh (ĐÃ BỎ CỘT ĐIỂM)
   db.ref('players').on('value', (snapshot) => {
     const tbody = document.getElementById('playerTableBody');
     const countBadge = document.getElementById('playerCount');
@@ -205,40 +187,46 @@ function startFirebaseListeners() {
       return;
     }
 
-    let total = 0;
+    const playersList = [];
     snapshot.forEach((child) => {
-      const key = child.key;
       const p = child.val();
-      if (p.kicked) return;
+      if (!p.kicked) {
+        playersList.push({ key: child.key, ...p });
+      }
+    });
 
-      total++;
-      const currentScore = p.score || 0;
+    playersList.sort((a, b) => (a.joinedAt || a.lastOnline || 0) - (b.joinedAt || b.lastOnline || 0));
+
+    const cellLabels = ['B6', 'C6', 'D6', 'E6', 'F6'];
+
+    playersList.forEach((p, idx) => {
+      const cellName = cellLabels[idx] || `Cột ${idx + 1}`;
+
       const row = document.createElement('tr');
       row.className = 'hover:bg-slate-800/50 transition';
       row.innerHTML = `
-        <td class="p-2 font-semibold text-slate-200">${escapeHtml(p.name)}</td>
-        
-        <td class="p-2 text-center">
-          <span class="font-black text-amber-400 text-sm bg-slate-950 px-3 py-1 rounded border border-slate-800">${currentScore}</span>
+        <td class="p-2 font-semibold text-slate-200">
+          ${escapeHtml(p.name)} 
+          <span class="text-[10px] text-amber-400 font-mono ml-1">(${cellName})</span>
         </td>
 
         <td class="p-2 text-center">
-          <button onclick="toggleMuteBuzzer('${key}', ${!p.muteBuzzer})" class="px-2 py-1 rounded text-[10px] font-bold ${p.muteBuzzer ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'}">
+          <button onclick="toggleMuteBuzzer('${p.key}', ${!p.muteBuzzer})" class="px-2 py-1 rounded text-[10px] font-bold ${p.muteBuzzer ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'}">
             ${p.muteBuzzer ? '🔇 Đã Cấm' : '🔔 Bình Thường'}
           </button>
         </td>
         <td class="p-2 text-center">
-          <button onclick="toggleMuteChat('${key}', ${!p.muteChat})" class="px-2 py-1 rounded text-[10px] font-bold ${p.muteChat ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'}">
+          <button onclick="toggleMuteChat('${p.key}', ${!p.muteChat})" class="px-2 py-1 rounded text-[10px] font-bold ${p.muteChat ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'}">
             ${p.muteChat ? '🔇 Đã Cấm' : '💬 Bình Thường'}
           </button>
         </td>
         <td class="p-2 text-center">
-          <button onclick="kickPlayer('${key}')" class="bg-red-600/80 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded transition">❌</button>
+          <button onclick="kickPlayer('${p.key}')" class="bg-red-600/80 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded transition">❌</button>
         </td>
       `;
       tbody.appendChild(row);
     });
-    if (countBadge) countBadge.innerText = `${total} thí sinh`;
+    if (countBadge) countBadge.innerText = `${playersList.length} thí sinh`;
   });
 
   // 5. Câu trả lời Realtime
@@ -261,7 +249,7 @@ function startFirebaseListeners() {
   });
 }
 
-// Các hàm điều khiển Admin
+// Thao tác Admin
 function setBuzzerLock(status) { db.ref('settings/locked').set(status); }
 function clearBuzzers() { db.ref('buzzers').remove(); }
 function clearAnswers() { db.ref('answers').remove(); }
