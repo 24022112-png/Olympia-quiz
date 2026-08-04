@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vượt Chướng Ngại Vật - Lật Ảnh</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Hiệu ứng lật miếng ghép mượt mà */
+    .tile-cover {
+      transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-origin: center;
+    }
+    .tile-open {
+      opacity: 0;
+      transform: scale(0.6) rotate(15deg);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 font-sans flex flex-col items-center">
+
+  <!-- Header -->
+  <div class="w-full max-w-4xl flex justify-between items-center mb-6 bg-slate-900/90 border border-slate-800 p-4 rounded-xl shadow-lg">
+    <div>
+      <h1 class="text-xl sm:text-2xl font-black text-amber-400 uppercase tracking-wider">
+        🧩 Vượt Chướng Ngại Vật
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Click vào từng ô số để mở hình ảnh chướng ngại vật</p>
+    </div>
+    <a href="index.html" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg border border-slate-700 transition font-bold">
+      ⬅️ Màn chính
+    </a>
+  </div>
+
+  <!-- Khung Bức Ảnh & 5 Miếng Ghép -->
+  <div class="w-full max-w-4xl relative aspect-video bg-slate-900 rounded-2xl border-4 border-amber-400/80 shadow-[0_0_50px_rgba(251,191,36,0.15)] overflow-hidden select-none">
+    
+    <!-- Ảnh Chướng Ngại Vật ở dưới -->
+    <img 
+      id="obstacleImg" 
+      src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop" 
+      alt="Chướng ngại vật" 
+      class="w-full h-full object-cover"
+    />
+
+    <!-- Container chứa 5 miếng ghép phủ lên ảnh -->
+    <div class="absolute inset-0 p-2 grid grid-cols-2 grid-rows-2 gap-2">
+      
+      <!-- Ô số 1: Góc trên bên trái -->
+      <div onclick="toggleTile(1)" id="tile-1" class="tile-cover relative z-10 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border-2 border-amber-400/80 rounded-xl flex items-center justify-center cursor-pointer shadow-xl hover:border-amber-300 hover:brightness-125">
+        <span class="text-4xl sm:text-6xl font-black text-amber-400 font-mono drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">1</span>
+      </div>
+
+      <!-- Ô số 2: Góc trên bên phải -->
+      <div onclick="toggleTile(2)" id="tile-2" class="tile-cover relative z-10 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border-2 border-amber-400/80 rounded-xl flex items-center justify-center cursor-pointer shadow-xl hover:border-amber-300 hover:brightness-125">
+        <span class="text-4xl sm:text-6xl font-black text-amber-400 font-mono drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">2</span>
+      </div>
+
+      <!-- Ô số 3: Góc dưới bên trái -->
+      <div onclick="toggleTile(3)" id="tile-3" class="tile-cover relative z-10 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border-2 border-amber-400/80 rounded-xl flex items-center justify-center cursor-pointer shadow-xl hover:border-amber-300 hover:brightness-125">
+        <span class="text-4xl sm:text-6xl font-black text-amber-400 font-mono drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">3</span>
+      </div>
+
+      <!-- Ô số 4: Góc dưới bên phải -->
+      <div onclick="toggleTile(4)" id="tile-4" class="tile-cover relative z-10 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border-2 border-amber-400/80 rounded-xl flex items-center justify-center cursor-pointer shadow-xl hover:border-amber-300 hover:brightness-125">
+        <span class="text-4xl sm:text-6xl font-black text-amber-400 font-mono drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">4</span>
+      </div>
+
+      <!-- Ô số 5: Trung tâm (Đè lên 4 ô xung quanh) -->
+      <div onclick="toggleTile(5)" id="tile-5" class="tile-cover absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2/5 h-2/5 z-20 bg-gradient-to-br from-amber-600 via-amber-500 to-yellow-600 border-4 border-slate-900 rounded-2xl flex items-center justify-center cursor-pointer shadow-[0_0_30px_rgba(0,0,0,0.9)] hover:scale-105 transition-transform">
+        <span class="text-4xl sm:text-6xl font-black text-slate-950 font-mono drop-shadow">5</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Thanh Điều Khiển Cho Admin/Host -->
+  <div class="w-full max-w-4xl mt-6 bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+    
+    <!-- Thay đổi ảnh -->
+    <div class="flex-1 w-full flex items-center gap-2">
+      <input 
+        type="text" 
+        id="imgUrlInput" 
+        placeholder="Dán URL hình ảnh mới vào đây..." 
+        class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-amber-400"
+      />
+      <button onclick="changeImageByUrl()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-lg whitespace-nowrap transition">
+        Đổi Ảnh
+      </button>
+      <label class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-3 py-2.5 rounded-lg border border-slate-700 cursor-pointer whitespace-nowrap transition">
+        📁 Tải File
+        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="uploadLocalImage(event)" />
+      </label>
+    </div>
+
+    <!-- Nút Mở/Ẩn Hàng Loạt -->
+    <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+      <button onclick="resetAllTiles()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs px-4 py-2.5 rounded-lg border border-slate-700 transition">
+        🔒 Đóng Tất Cả
+      </button>
+      <button onclick="openAllTiles()" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-bold text-xs px-4 py-2.5 rounded-lg border border-emerald-500/40 transition">
+        🔓 Mở Tất Cả
+      </button>
+    </div>
+
+  </div>
+
+  <script src="js/obstacle.js"></script>
+</body>
+</html>
