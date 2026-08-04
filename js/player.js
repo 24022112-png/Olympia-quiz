@@ -14,31 +14,11 @@ let isMuteChat = false;
 let isKicked = false;
 const pageLoadTime = Date.now();
 
-// Phát tiếng chuông bằng Web Audio API
+// Phát âm thanh chuông từ file MP3 trong thư mục sound/
 function playBuzzerSound() {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
-
-    gain.gain.setValueAtTime(0.8, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    osc.stop(ctx.currentTime + 0.5);
-  } catch (e) {
-    console.log("Audio play blocked or unsupported:", e);
-  }
+  const audio = new Audio('sound/buzzer.mp3');
+  audio.currentTime = 0;
+  audio.play().catch(e => console.log("Không thể phát âm thanh:", e));
 }
 
 // Cập nhật thông tin thí sinh lên Firebase
@@ -81,7 +61,6 @@ db.ref('players/' + playerId).on('value', (snapshot) => {
   isMuteBuzzer = data.muteBuzzer ?? false;
   isMuteChat = data.muteChat ?? false;
 
-  // Xử lý khi bị đuổi
   if (isKicked) {
     document.getElementById('kickedModal').classList.remove('hidden');
     document.getElementById('buzzerBtn').disabled = true;
@@ -91,7 +70,6 @@ db.ref('players/' + playerId).on('value', (snapshot) => {
     document.getElementById('kickedModal').classList.add('hidden');
   }
 
-  // Cập nhật trạng thái nút chat
   const sendBtn = document.getElementById('sendBtn');
   const answerInput = document.getElementById('answerInput');
   const chatNotice = document.getElementById('chatNotice');
@@ -184,7 +162,7 @@ db.ref('settings/locked').on('value', (snapshot) => {
   updateBuzzerButtonState();
 });
 
-// Lắng nghe tín hiệu chuông Realtime để phát âm thanh ở tất cả các máy
+// Lắng nghe tín hiệu chuông Realtime để phát âm thanh
 db.ref('buzzers').on('child_added', (snapshot) => {
   const data = snapshot.val();
   if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
@@ -192,7 +170,7 @@ db.ref('buzzers').on('child_added', (snapshot) => {
   }
 });
 
-// Thứ tự bấm chuông (CÔNG KHAI CHO TẤT CẢ THÍ SINH)
+// Thứ tự bấm chuông (CÔNG KHAI)
 db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('buzzerQueue');
   list.innerHTML = '';
@@ -219,7 +197,7 @@ db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
   });
 });
 
-// Lắng nghe tin nhắn (CHỈ HIỂN THỊ TIN NHẮN CỦA CHÍNH THÍ SINH NÀY)
+// Lắng nghe tin nhắn (CHỈ HIỂN THỊ TIN NHẮN CỦA MÌNH)
 db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   const list = document.getElementById('answerStream');
   list.innerHTML = '';
@@ -228,7 +206,6 @@ db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
   if (snapshot.exists()) {
     snapshot.forEach((child) => {
       const data = child.val();
-      // CHỈ HIỂN THỊ CÂU TRẢ LỜI CỦA MÌNH
       if (data.playerId === playerId || data.name === nickname) {
         myCount++;
         const timeStr = new Date(data.timestamp).toLocaleTimeString();
