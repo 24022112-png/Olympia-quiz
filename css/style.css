@@ -19,20 +19,45 @@ body {
   border-color: #ffd700;
 }
 
+/* NÚT BẤM CHUÔNG THÍ SINH */
 .buzzer-btn {
   background: radial-gradient(circle, #ff4d4d 0%, #cc0000 100%);
   box-shadow: 0 10px 0 #800000, 0 15px 20px rgba(0,0,0,0.5);
   transition: all 0.1s ease;
+  user-select: none;
+}
+
+/* Hiệu ứng khi chuông sẵn sàng */
+.buzzer-btn:not(:disabled) {
+  animation: pulse-glow 1.5s infinite alternate;
+  cursor: pointer;
 }
 
 .buzzer-btn:active:not(:disabled) {
-  transform: translateY(6px);
+  transform: translateY(6px) scale(0.95);
   box-shadow: 0 4px 0 #800000, 0 8px 10px rgba(0,0,0,0.5);
+  background: radial-gradient(circle, #ff6666 0%, #e60000 100%);
 }
 
 .buzzer-btn:disabled {
-  background: #4a4a4a;
+  background: #333333;
   box-shadow: none;
   cursor: not-allowed;
-  border-color: #666;
+  border-color: #555555;
+  opacity: 0.6;
+  animation: none;
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 10px 0 #800000, 0 0 10px rgba(255, 77, 77, 0.4); }
+  100% { box-shadow: 0 10px 0 #800000, 0 0 25px rgba(255, 77, 77, 0.9); }
+}
+
+/* HIỆU ỨNG NÚT QUẢN TRỊ VIÊN & GỬI BÀI */
+.btn-action {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.btn-action:active {
+  transform: scale(0.96);
+  filter: brightness(1.2);
 }
