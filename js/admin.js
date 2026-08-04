@@ -1,311 +1,161 @@
-let isLocked = true;
-let maxPlayers = 0;
-const pageLoadTime = Date.now();
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Olympia Admin - Quản Trị Viên</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-6 font-sans">
 
-// URL Web App Google Apps Script lưu trong localStorage
-let webAppUrl = localStorage.getItem('olympia_script_url') || '';
-
-// Phát âm thanh chuông
-function playBuzzerSound() {
-  const audio = new Audio('sound/buzzer.mp3');
-  audio.currentTime = 0;
-  audio.play().catch(e => console.log("Không thể phát âm thanh:", e));
-}
-
-function toggleLock() {
-  db.ref('settings/locked').set(!isLocked);
-}
-
-db.ref('settings/locked').on('value', (snapshot) => {
-  isLocked = snapshot.val() ?? true;
-  const btn = document.getElementById('toggleLockBtn');
-  btn.innerText = isLocked ? 'MỞ KHÓA CHUÔNG' : 'KHÓA CHUÔNG';
-  btn.className = isLocked 
-    ? 'btn-action py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded-lg uppercase tracking-wider text-sm transition shadow-lg shadow-emerald-900/50' 
-    : 'btn-action py-3 bg-red-600 hover:bg-red-500 font-extrabold rounded-lg uppercase tracking-wider text-sm transition shadow-lg shadow-red-900/50';
-});
-
-// Cấu hình Giới hạn người chơi
-db.ref('settings/maxPlayers').on('value', (snapshot) => {
-  maxPlayers = snapshot.val() || 0;
-  const input = document.getElementById('maxPlayersInput');
-  if (input) input.value = maxPlayers;
-});
-
-function setMaxPlayers() {
-  const val = parseInt(document.getElementById('maxPlayersInput').value) || 0;
-  db.ref('settings/maxPlayers').set(val);
-  alert(`Đã cập nhật giới hạn số người chơi: ${val === 0 ? 'Không giới hạn' : val + ' người'}`);
-}
-
-function clearBuzzers() {
-  db.ref('buzzers').remove();
-}
-
-function clearAnswers() {
-  db.ref('answers').remove();
-}
-
-function resetAllPlayers() {
-  if (confirm('Bạn có chắc chắn muốn xóa toàn bộ danh sách thí sinh?')) {
-    db.ref('players').remove();
-  }
-}
-
-function toggleMuteBuzzer(pId, currentVal) {
-  db.ref(`players/${pId}/muteBuzzer`).set(!currentVal);
-}
-
-function toggleMuteChat(pId, currentVal) {
-  db.ref(`players/${pId}/muteChat`).set(!currentVal);
-}
-
-function kickPlayer(pId) {
-  if (confirm('Bạn có chắc muốn ĐUỔI thí sinh này khỏi phòng?')) {
-    db.ref(`players/${pId}/kicked`).set(true);
-  }
-}
-
-function unkickPlayer(pId) {
-  db.ref(`players/${pId}/kicked`).set(false);
-}
-
-// Quản lý thí sinh Realtime
-db.ref('players').on('value', (snapshot) => {
-  const container = document.getElementById('playerList');
-  const countSpan = document.getElementById('playerCount');
-  container.innerHTML = '';
-
-  if (!snapshot.exists()) {
-    container.innerHTML = '<p class="text-slate-500 italic text-sm col-span-full">Chưa có thí sinh nào tham gia...</p>';
-    countSpan.innerText = '0 Thí sinh';
-    return;
-  }
-
-  const players = snapshot.val();
-  const playerKeys = Object.keys(players);
-  countSpan.innerText = `${playerKeys.length}${maxPlayers > 0 ? '/' + maxPlayers : ''} Thí sinh`;
-
-  playerKeys.forEach((key) => {
-    const p = players[key];
-    const isMuteBuzzer = p.muteBuzzer ?? false;
-    const isMuteChat = p.muteChat ?? false;
-    const isKicked = p.kicked ?? false;
-
-    const card = document.createElement('div');
-    card.className = `p-3 rounded-lg border flex flex-col justify-between space-y-3 ${isKicked ? 'bg-red-950/40 border-red-800 opacity-75' : 'bg-slate-900 border-slate-700'}`;
+  <div class="max-w-7xl mx-auto space-y-6">
     
-    card.innerHTML = `
-      <div class="flex justify-between items-center">
+    <!-- HEADER -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-4 gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-extrabold text-amber-400 tracking-wide uppercase">
+          ⚡ BẢNG QUẢN TRỊ OLYMPIA
+        </h1>
+        <p class="text-xs text-slate-400 mt-1">Điều khiển chuông, giới hạn người chơi và đồng bộ Google Sheet</p>
+      </div>
+
+      <!-- Cấu hình Giới hạn số người chơi -->
+      <div class="flex items-center gap-2 bg-slate-900 p-2.5 rounded-lg border border-slate-700 shadow-md">
+        <span class="text-xs text-slate-300 font-bold whitespace-nowrap">Giới hạn thí sinh:</span>
+        <input id="maxPlayersInput" type="number" min="0" placeholder="0 = Tự do" class="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500 text-center font-mono">
+        <button onclick="setMaxPlayers()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded transition shadow">
+          Lưu
+        </button>
+      </div>
+    </header>
+
+    <!-- NÚT ĐIỀU KHIỂN CHÍNH -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <button id="toggleLockBtn" onclick="toggleLock()" class="btn-action py-3 bg-emerald-600 hover:bg-emerald-500 font-extrabold rounded-lg uppercase tracking-wider text-sm transition shadow-lg shadow-emerald-900/50">
+        MỞ KHÓA CHUÔNG
+      </button>
+      <button onclick="clearBuzzers()" class="py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-sm transition shadow">
+        🧹 Xóa danh sách chuông
+      </button>
+      <button onclick="clearAnswers()" class="py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-sm transition shadow">
+        💬 Xóa câu trả lời
+      </button>
+      <button onclick="resetAllPlayers()" class="py-3 bg-rose-700 hover:bg-rose-600 text-white font-bold rounded-lg text-sm transition shadow">
+        ⚠️ Xóa toàn bộ Thí sinh
+      </button>
+    </section>
+
+    <!-- QUẢN LÝ GOOGLE SHEET & SỬA TÊN NHÓM (Ô B1, C1, D1...) -->
+    <section class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-xl space-y-4">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-800 pb-3">
         <div>
-          <span class="font-bold text-white text-base">${p.name || 'Không tên'}</span>
-          <div class="flex gap-1 mt-1">
-            ${isKicked ? '<span class="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-bold">BỊ ĐUỔI</span>' : ''}
-            ${isMuteBuzzer ? '<span class="text-[10px] bg-yellow-600 text-white px-1.5 py-0.5 rounded font-bold">CHẶN CHUÔNG</span>' : ''}
-            ${isMuteChat ? '<span class="text-[10px] bg-orange-600 text-white px-1.5 py-0.5 rounded font-bold">CHẶN CHAT</span>' : ''}
-            ${!isKicked && !isMuteBuzzer && !isMuteChat ? '<span class="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">BÌNH THƯỜNG</span>' : ''}
-          </div>
+          <h3 class="font-bold text-yellow-400 text-lg flex items-center gap-2">
+            📊 TÍCH HỢP & SỬA TÊN NHÓM GOOGLE SHEET
+          </h3>
+          <p class="text-xs text-slate-400">Đã kết nối tự động API! Bạn có thể sửa ô B1, C1, D1... trực tiếp tại đây.</p>
+        </div>
+        <button onclick="fetchSheetData()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-3 py-1.5 rounded-lg font-medium transition">
+          🔄 Đọc lại dữ liệu Sheet
+        </button>
+      </div>
+
+      <!-- Danh sách ô B1, C1, D1... để chỉnh sửa -->
+      <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Chỉnh sửa Tên nhóm (Định dạng ô Hàng 1)</span>
+          <button onclick="addGroupInput()" class="text-xs bg-indigo-900/60 hover:bg-indigo-800 text-indigo-300 border border-indigo-700 px-2.5 py-1 rounded">
+            + Thêm nhóm
+          </button>
+        </div>
+        <div id="groupInputsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <!-- Các ô input cho B1, C1, D1... sẽ hiển thị ở đây -->
+        </div>
+        <div class="pt-2 flex justify-end">
+          <button onclick="updateSheetGroupNames()" class="bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-extrabold text-xs px-5 py-2 rounded-lg shadow transition">
+            💾 Ghi Tên Nhóm Vào Google Sheet (B1, C1, D1...)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- LƯỚI QUẢN LÝ THỜI THỰC (3 CỘT) -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- CỘT 1: DANH SÁCH THÍ SINH -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col h-[420px]">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+          <h2 class="font-bold text-slate-200 text-base flex items-center gap-2">
+            👥 Thí sinh trong phòng
+          </h2>
+          <span id="playerCount" class="text-xs bg-slate-800 px-2.5 py-1 rounded-full text-indigo-400 font-mono font-bold">0 Thí sinh</span>
+        </div>
+        <div id="playerList" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+          <p class="text-slate-500 italic text-sm">Đang tải danh sách thí sinh...</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-3 gap-1 pt-2 border-t border-slate-800">
-        <button onclick="toggleMuteBuzzer('${key}', ${isMuteBuzzer})" class="btn-action text-[11px] py-1 px-2 rounded font-bold ${isMuteBuzzer ? 'bg-yellow-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
-          ${isMuteBuzzer ? 'Bỏ Chặn Chuông' : 'Chặn Chuông'}
-        </button>
-        <button onclick="toggleMuteChat('${key}', ${isMuteChat})" class="btn-action text-[11px] py-1 px-2 rounded font-bold ${isMuteChat ? 'bg-orange-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
-          ${isMuteChat ? 'Bỏ Chặn Chat' : 'Chặn Chat'}
-        </button>
-        ${isKicked ? `
-          <button onclick="unkickPlayer('${key}')" class="btn-action text-[11px] py-1 px-2 rounded font-bold bg-emerald-700 hover:bg-emerald-600 text-white">
-            Cho Vào Lại
-          </button>
-        ` : `
-          <button onclick="kickPlayer('${key}')" class="btn-action text-[11px] py-1 px-2 rounded font-bold bg-red-700 hover:bg-red-600 text-white">
-            Đuổi
-          </button>
-        `}
+      <!-- CỘT 2: THỨ TỰ BẤM CHUÔNG -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col h-[420px]">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+          <h2 class="font-bold text-amber-400 text-base flex items-center gap-2">
+            🔔 Thứ tự bấm chuông
+          </h2>
+          <span class="text-xs text-slate-500">Realtime</span>
+        </div>
+        <ul id="adminBuzzerList" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+          <li class="text-slate-500 italic text-sm">Chưa có tín hiệu chuông...</li>
+        </ul>
       </div>
-    `;
-    container.appendChild(card);
-  });
-});
 
-// Lắng nghe tiếng chuông Realtime
-db.ref('buzzers').on('child_added', (snapshot) => {
-  const data = snapshot.val();
-  if (data && data.timestamp && data.timestamp > pageLoadTime - 2000) {
-    playBuzzerSound();
-  }
-});
-
-// Lắng nghe danh sách bấm chuông
-db.ref('buzzers').orderByChild('timestamp').on('value', (snapshot) => {
-  const list = document.getElementById('adminBuzzerList');
-  list.innerHTML = '';
-
-  if (!snapshot.exists()) {
-    list.innerHTML = '<li class="text-slate-500 italic">Chưa có tín hiệu chuông...</li>';
-    return;
-  }
-
-  let rank = 1;
-  snapshot.forEach((child) => {
-    const data = child.val();
-    const date = new Date(data.timestamp);
-    const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}.${Math.floor(date.getMilliseconds()/100)}`;
-    const item = document.createElement('li');
-    item.className = `flex justify-between items-center p-2 rounded border ${rank === 1 ? 'gold-glow bg-yellow-950/60 border-yellow-400 font-bold' : 'bg-slate-800 border-slate-700'}`;
-    item.innerHTML = `
-      <span><b class="${rank === 1 ? 'text-yellow-400' : 'text-slate-400'}">#${rank}</b> ${data.name}</span>
-      <span class="text-xs font-mono text-slate-400">${timeStr}</span>
-    `;
-    list.appendChild(item);
-    rank++;
-  });
-});
-
-// Lắng nghe câu trả lời
-db.ref('answers').orderByChild('timestamp').on('value', (snapshot) => {
-  const list = document.getElementById('adminAnswerList');
-  list.innerHTML = '';
-
-  if (!snapshot.exists()) {
-    list.innerHTML = '<p class="text-slate-500 italic">Chưa nhận được câu trả lời nào...</p>';
-    return;
-  }
-
-  snapshot.forEach((child) => {
-    const data = child.val();
-    const timeStr = new Date(data.timestamp).toLocaleTimeString();
-    const item = document.createElement('div');
-    item.className = 'p-2 rounded bg-slate-800 border border-slate-700 space-y-1';
-    item.innerHTML = `
-      <div class="flex justify-between text-xs">
-        <span class="font-bold text-emerald-400">${data.name}</span>
-        <span class="text-slate-400 font-mono">${timeStr}</span>
+      <!-- CỘT 3: CÂU TRẢ LỜI CỦA THÍ SINH -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col h-[420px]">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+          <h2 class="font-bold text-emerald-400 text-base flex items-center gap-2">
+            💬 Câu trả lời nhận được
+          </h2>
+          <span class="text-xs text-slate-500">Realtime</span>
+        </div>
+        <div id="adminAnswerList" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+          <p class="text-slate-500 italic text-sm">Chưa nhận được câu trả lời nào...</p>
+        </div>
       </div>
-      <div class="text-slate-100 font-medium">${data.text}</div>
-    `;
-    list.appendChild(item);
-  });
-});
 
-// --- CHỨC NĂNG XỬ LÝ KẾT NỐI VÀ CHỈNH SỬA GOOGLE SHEET ---
+    </section>
 
-// Lưu Web App URL
-function saveWebAppUrl() {
-  const url = document.getElementById('webAppUrlInput').value.trim();
-  if (!url) return alert('Vui lòng nhập Web App URL!');
-  webAppUrl = url;
-  localStorage.setItem('olympia_script_url', webAppUrl);
-  alert('Đã lưu Web App URL thành công!');
-  fetchSheetData();
-}
+    <!-- BẢNG XẾP HẠNG TỔNG ĐIỂM (B6, C6, D6...) -->
+    <section class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-xl">
+      <h3 class="font-bold text-yellow-400 text-lg mb-3 flex items-center gap-2">
+        🏆 BẢNG XẾP HẠNG TỔNG ĐIỂM (LẤY TỪ CÁC Ô B6, C6, D6...)
+      </h3>
 
-// Khởi tạo các ô nhập tên nhóm
-function renderGroupInputs(groups = []) {
-  const container = document.getElementById('groupInputsContainer');
-  container.innerHTML = '';
+      <div class="overflow-x-auto rounded-lg border border-slate-800">
+        <table class="w-full text-sm text-left">
+          <thead class="text-xs uppercase bg-slate-800/80 text-slate-400 border-b border-slate-700">
+            <tr>
+              <th class="p-3 text-center w-16">Hạng</th>
+              <th class="p-3">Tên Nhóm (Ô Hàng 1)</th>
+              <th class="p-3 text-center">Vị Trí Cột</th>
+              <th class="p-3 text-center font-bold text-emerald-400">TỔNG ĐIỂM (Ô Hàng 6)</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody" class="divide-y divide-slate-800/50">
+            <tr>
+              <td colspan="4" class="text-center p-4 text-slate-500 italic">Đang tải dữ liệu tổng điểm...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-  const count = Math.max(groups.length, 5); // Mặc định hiển thị ít nhất 5 nhóm
-  for (let i = 0; i < count; i++) {
-    const colLetter = String.fromCharCode(66 + i); // B, C, D, E, F...
-    const name = groups[i] ? groups[i].name : `Nhóm ${i + 1}`;
+  </div>
 
-    const div = document.createElement('div');
-    div.className = 'flex flex-col gap-1';
-    div.innerHTML = `
-      <label class="text-[11px] text-slate-400 font-mono font-bold">Ô ${colLetter}1:</label>
-      <input type="text" value="${name}" class="group-name-input bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-yellow-500">
-    `;
-    container.appendChild(div);
-  }
-}
-
-// Thêm 1 ô nhập nhóm
-function addGroupInput() {
-  const container = document.getElementById('groupInputsContainer');
-  const count = container.children.length;
-  const colLetter = String.fromCharCode(66 + count);
-
-  const div = document.createElement('div');
-  div.className = 'flex flex-col gap-1';
-  div.innerHTML = `
-    <label class="text-[11px] text-slate-400 font-mono font-bold">Ô ${colLetter}1:</label>
-    <input type="text" value="Nhóm ${count + 1}" class="group-name-input bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-yellow-500">
-  `;
-  container.appendChild(div);
-}
-
-// Đọc dữ liệu từ Google Sheet (Lấy ô B1, C1... và B6, C6...)
-async function fetchSheetData() {
-  if (!webAppUrl) return;
-
-  const tableBody = document.getElementById('leaderboardBody');
-  tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3 text-slate-400">Đang tải dữ liệu từ Google Sheet...</td></tr>';
-
-  try {
-    const res = await fetch(webAppUrl);
-    const data = await res.json(); // Mảng [{colLetter: 'B', name: 'Nhóm 1', total: 100}, ...]
-
-    renderGroupInputs(data);
-
-    // Sắp xếp danh sách theo Tổng điểm (Hàng 6) giảm dần
-    const sortedData = [...data].sort((a, b) => b.total - a.total);
-
-    tableBody.innerHTML = '';
-    sortedData.forEach((item, index) => {
-      const isTop1 = index === 0 && item.total > 0;
-      const tr = document.createElement('tr');
-      tr.className = isTop1 
-        ? 'bg-yellow-950/60 border-b border-yellow-500/50 text-yellow-300 font-bold' 
-        : 'border-b border-slate-800 hover:bg-slate-800/50';
-
-      tr.innerHTML = `
-        <td class="p-3 text-center">${index + 1} ${isTop1 ? '👑' : ''}</td>
-        <td class="p-3 font-semibold text-slate-100">${item.name}</td>
-        <td class="p-3 text-center text-slate-400 font-mono">Ô ${item.colLetter}1 / Ô ${item.colLetter}6</td>
-        <td class="p-3 text-center font-bold text-emerald-400 text-base">${item.total}</td>
-      `;
-      tableBody.appendChild(tr);
-    });
-
-  } catch (err) {
-    console.error("Lỗi đọc Google Sheet:", err);
-    tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3 text-red-400 font-bold">Lỗi kết nối Web App URL! Vui lòng kiểm tra lại URL.</td></tr>';
-  }
-}
-
-// Ghi dữ liệu Tên nhóm vào các ô B1, C1, D1... trên Google Sheet
-async function updateSheetGroupNames() {
-  if (!webAppUrl) return alert('Vui lòng lưu Web App URL trước!');
-
-  const inputs = document.querySelectorAll('.group-name-input');
-  const groupNames = Array.from(inputs).map(input => input.value.trim());
-
-  try {
-    await fetch(webAppUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groupNames })
-    });
-
-    alert('Đã gửi yêu cầu cập nhật tên nhóm (B1, C1, D1...) lên Google Sheet!');
-    setTimeout(fetchSheetData, 1500); // Tải lại bảng điểm sau 1.5s
-  } catch (err) {
-    console.error("Lỗi cập nhật tên nhóm:", err);
-    alert('Không thể cập nhật tên nhóm. Kiểm tra lại Web App URL!');
-  }
-}
-
-// Khởi tạo trang
-if (webAppUrl) {
-  document.getElementById('webAppUrlInput').value = webAppUrl;
-  fetchSheetData();
-} else {
-  renderGroupInputs();
-}
-
-// Tự động làm mới điểm mỗi 10 giây
-setInterval(fetchSheetData, 10000);
+  <!-- FIREBASE CONFIG & ADMIN SCRIPT -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
