@@ -1,474 +1,156 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <!-- Font Awesome cho Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        /* CSS Reset & Biến cơ bản */
-        :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3f37c9;
-            --bg-color: #f8f9fa;
-            --sidebar-bg: #111827;
-            --text-dark: #333333;
-            --text-light: #9ca3af;
-            --white: #ffffff;
-            --border-color: #e5e7eb;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-dark);
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Tùy chỉnh thanh cuộn */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-        /* ================= SIDEBAR ================= */
-        .sidebar {
-            width: 250px;
-            background-color: var(--sidebar-bg);
-            color: var(--white);
-            display: flex;
-            flex-direction: column;
-            transition: all 0.3s ease;
-            position: fixed;
-            height: 100vh;
-            z-index: 100;
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: 700;
-            border-bottom: 1px solid #1f2937;
-            letter-spacing: 1px;
-        }
-
-        .sidebar-header span {
-            color: var(--primary-color);
-        }
-
-        .sidebar-menu {
-            padding: 20px 0;
-            flex: 1;
-        }
-
-        .menu-item {
-            padding: 15px 25px;
-            display: flex;
-            align-items: center;
-            color: var(--text-light);
-            text-decoration: none;
-            transition: 0.3s;
-            font-weight: 500;
-        }
-
-        .menu-item i {
-            margin-right: 15px;
-            font-size: 18px;
-            width: 20px;
-            text-align: center;
-        }
-
-        .menu-item:hover, .menu-item.active {
-            color: var(--white);
-            background-color: #1f2937;
-            border-left: 4px solid var(--primary-color);
-        }
-
-        /* ================= MAIN CONTENT ================= */
-        .main-content {
-            flex: 1;
-            margin-left: 250px; /* Bằng với width của sidebar */
-            display: flex;
-            flex-direction: column;
-            transition: all 0.3s ease;
-        }
-
-        /* TOPBAR */
-        .topbar {
-            height: 70px;
-            background-color: var(--white);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            z-index: 99;
-        }
-
-        .toggle-btn {
-            font-size: 20px;
-            cursor: pointer;
-            color: var(--text-dark);
-        }
-
-        .topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .search-box {
-            position: relative;
-        }
-
-        .search-box input {
-            padding: 8px 15px 8px 35px;
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            outline: none;
-            width: 200px;
-            transition: 0.3s;
-        }
-
-        .search-box input:focus {
-            border-color: var(--primary-color);
-            width: 250px;
-        }
-
-        .search-box i {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-light);
-        }
-
-        .profile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-        }
-
-        .profile img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        /* DASHBOARD CONTENT */
-        .content {
-            padding: 30px;
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .page-title {
-            margin-bottom: 25px;
-            font-size: 24px;
-            color: var(--text-dark);
-        }
-
-        /* Thẻ thống kê (Cards) */
-        .dashboard-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background-color: var(--white);
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.03);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .card-info h3 {
-            font-size: 28px;
-            color: var(--text-dark);
-            margin-bottom: 5px;
-        }
-
-        .card-info p {
-            color: var(--text-light);
-            font-size: 14px;
-        }
-
-        .card-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .icon-blue { background: #e0e7ff; color: var(--primary-color); }
-        .icon-green { background: #d1fae5; color: var(--success); }
-        .icon-yellow { background: #fef3c7; color: var(--warning); }
-        .icon-red { background: #fee2e2; color: var(--danger); }
-
-        /* Bảng dữ liệu (Table) */
-        .recent-orders {
-            background-color: var(--white);
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.03);
-        }
-
-        .recent-orders h2 {
-            font-size: 18px;
-            margin-bottom: 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead {
-            background-color: #f3f4f6;
-        }
-
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        th {
-            font-weight: 600;
-            color: #4b5563;
-        }
-
-        .status {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .status.completed { background-color: #d1fae5; color: var(--success); }
-        .status.pending { background-color: #fef3c7; color: var(--warning); }
-        .status.cancelled { background-color: #fee2e2; color: var(--danger); }
-
-        /* ================= RESPONSIVE ================= */
-        @media (max-width: 991px) {
-            .sidebar { left: -250px; }
-            .sidebar.active { left: 0; }
-            .main-content { margin-left: 0; }
-            .main-content.active { margin-left: 250px; }
-            
-            /* Lớp phủ khi mở menu trên mobile */
-            .overlay {
-                display: none;
-                position: fixed;
-                top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.5);
-                z-index: 99;
-            }
-            .overlay.active { display: block; }
-        }
-
-        @media (max-width: 576px) {
-            .search-box { display: none; }
-            .dashboard-cards { grid-template-columns: 1fr; }
-            .recent-orders { overflow-x: auto; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản Trị Viên - Đấu Trường Olympia</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK 8.x -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-6 pb-12">
 
-    <!-- SIDEBAR -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            Admin<span>Pro</span>
-        </div>
-        <div class="sidebar-menu">
-            <a href="#" class="menu-item active">
-                <i class="fas fa-home"></i> Tổng quan
-            </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-users"></i> Khách hàng
-            </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-box"></i> Sản phẩm
-            </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-shopping-cart"></i> Đơn hàng
-            </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-chart-bar"></i> Báo cáo
-            </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-cog"></i> Cài đặt
-            </a>
-        </div>
+  <!-- MODAL ĐĂNG NHẬP ADMIN -->
+  <div id="loginModal" class="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full space-y-4 text-center shadow-2xl">
+      <div class="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto text-xl">
+        🔑
+      </div>
+      <h2 class="text-xl font-bold text-slate-100">Đăng Nhập Quản Trị</h2>
+      <p class="text-xs text-slate-400">Nhập mật khẩu Admin để truy cập hệ thống điều khiển Olympia</p>
+      
+      <div>
+        <input id="adminPasswordInput" type="password" placeholder="Mật khẩu Admin..." onkeydown="if(event.key === 'Enter') handleAdminLogin()"
+          class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 text-center tracking-widest">
+        <p id="loginError" class="text-xs text-red-500 mt-2 hidden">Mật khẩu không chính xác!</p>
+      </div>
+
+      <button onclick="handleAdminLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-lg text-sm transition shadow">
+        Đăng Nhập
+      </button>
     </div>
+  </div>
 
-    <!-- OVERLAY CHO MOBILE -->
-    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+  <!-- NỘI DUNG BẢNG QUẢN TRỊ (Chỉ hiển thị khi đăng nhập thành công) -->
+  <template id="adminContent">
+    <div class="max-w-5xl mx-auto space-y-6">
+      
+      <!-- HEADER ADMIN -->
+      <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-wrap justify-between items-center gap-4 shadow-xl">
+        <div>
+          <span class="text-xs text-amber-500 font-semibold tracking-wider uppercase">Hệ Thống Điều Khiển</span>
+          <h1 class="text-xl font-bold text-slate-100">Bảng Quản Trị Olympia</h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="statusBadge" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30">
+            🔒 CHUÔNG ĐANG KHÓA
+          </span>
+          <button onclick="adminLogout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+            Đăng xuất
+          </button>
+        </div>
+      </div>
 
-    <!-- MAIN CONTENT -->
-    <div class="main-content" id="main-content">
-        <!-- TOPBAR -->
-        <div class="topbar">
-            <div class="toggle-btn" onclick="toggleSidebar()">
-                <i class="fas fa-bars"></i>
-            </div>
-            
-            <div class="topbar-right">
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Tìm kiếm...">
-                </div>
-                
-                <div class="profile">
-                    <img src="https://ui-avatars.com/api/?name=Admin+User&background=4361ee&color=fff" alt="Profile Image">
-                    <span style="font-weight: 500;">Admin User</span>
-                    <i class="fas fa-chevron-down" style="font-size: 12px; color: var(--text-light);"></i>
-                </div>
-            </div>
+      <!-- ĐIỀU KHIỂN NHA NHANH & THIẾT LẬP -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Cột 1: Điều khiển chuông -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-3">
+          <h2 class="font-bold text-sm text-slate-300 flex items-center gap-2">🔔 Quản Lý Chuông</h2>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="setBuzzerLock(false)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg text-xs transition shadow">
+              🔓 MỞ CHUÔNG
+            </button>
+            <button onclick="setBuzzerLock(true)" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-3 rounded-lg text-xs transition shadow">
+              🔒 KHÓA CHUÔNG
+            </button>
+          </div>
+          <button onclick="clearBuzzers()" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 font-bold py-2 rounded-lg text-xs transition">
+            🧹 Xóa Danh Sách Chuông
+          </button>
         </div>
 
-        <!-- CONTENT -->
-        <div class="content">
-            <h1 class="page-title">Bảng Điều Khiển (Dashboard)</h1>
-
-            <!-- CARDS THỐNG KÊ -->
-            <div class="dashboard-cards">
-                <div class="card">
-                    <div class="card-info">
-                        <h3>1,504</h3>
-                        <p>Tổng Người Dùng</p>
-                    </div>
-                    <div class="card-icon icon-blue">
-                        <i class="fas fa-users"></i>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-info">
-                        <h3>$24,500</h3>
-                        <p>Doanh Thu Tháng</p>
-                    </div>
-                    <div class="card-icon icon-green">
-                        <i class="fas fa-wallet"></i>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-info">
-                        <h3>342</h3>
-                        <p>Đơn Hàng Mới</p>
-                    </div>
-                    <div class="card-icon icon-yellow">
-                        <i class="fas fa-shopping-bag"></i>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-info">
-                        <h3>12</h3>
-                        <p>Yêu Cầu Hỗ Trợ</p>
-                    </div>
-                    <div class="card-icon icon-red">
-                        <i class="fas fa-headset"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- BẢNG DỮ LIỆU ĐƠN HÀNG -->
-            <div class="recent-orders">
-                <h2>Đơn hàng gần đây</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mã Đơn</th>
-                            <th>Khách Hàng</th>
-                            <th>Ngày Đặt</th>
-                            <th>Tổng Tiền</th>
-                            <th>Trạng Thái</th>
-                            <th>Thao Tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>#ORD-001</td>
-                            <td>Nguyễn Văn A</td>
-                            <td>05/08/2026</td>
-                            <td>$1,200</td>
-                            <td><span class="status completed">Hoàn thành</span></td>
-                            <td><a href="#" style="color: var(--primary-color);">Chi tiết</a></td>
-                        </tr>
-                        <tr>
-                            <td>#ORD-002</td>
-                            <td>Trần Thị B</td>
-                            <td>04/08/2026</td>
-                            <td>$850</td>
-                            <td><span class="status pending">Đang xử lý</span></td>
-                            <td><a href="#" style="color: var(--primary-color);">Chi tiết</a></td>
-                        </tr>
-                        <tr>
-                            <td>#ORD-003</td>
-                            <td>Lê Văn C</td>
-                            <td>03/08/2026</td>
-                            <td>$2,300</td>
-                            <td><span class="status completed">Hoàn thành</span></td>
-                            <td><a href="#" style="color: var(--primary-color);">Chi tiết</a></td>
-                        </tr>
-                        <tr>
-                            <td>#ORD-004</td>
-                            <td>Phạm Thị D</td>
-                            <td>02/08/2026</td>
-                            <td>$150</td>
-                            <td><span class="status cancelled">Đã hủy</span></td>
-                            <td><a href="#" style="color: var(--primary-color);">Chi tiết</a></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <!-- Cột 2: Giới hạn phòng thi -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-3">
+          <h2 class="font-bold text-sm text-slate-300 flex items-center gap-2">⚙️ Giới Hạn Thí Sinh</h2>
+          <div class="flex gap-2">
+            <input id="maxPlayersInput" type="number" min="0" placeholder="0 = Không giới hạn" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+            <button onclick="updateMaxPlayers()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition">
+              Lưu
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-500">Nhập 0 nếu không muốn giới hạn số người tham gia.</p>
         </div>
+
+        <!-- Cột 3: Quản lý Chat -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-3">
+          <h2 class="font-bold text-sm text-slate-300 flex items-center gap-2">💬 Dữ Liệu Câu Trả Lời</h2>
+          <button onclick="clearAnswers()" class="w-full bg-slate-800 hover:bg-slate-700 text-red-400 border border-slate-700 font-bold py-2.5 rounded-lg text-xs transition">
+            🗑️ Xóa Tất Cả Câu Trả Lời
+          </button>
+        </div>
+
+      </div>
+
+      <!-- QUẢN LÝ THÍ SINH & ĐIỂM SỐ -->
+      <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="font-bold text-sm text-slate-300 flex items-center gap-2">👥 Danh Sách Thí Sinh & Điểm Số</h2>
+          <span id="playerCount" class="text-xs text-amber-400 font-bold">0 thí sinh</span>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="uppercase bg-slate-950 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-2.5">Thí sinh</th>
+                <th class="p-2.5 text-center">Điểm</th>
+                <th class="p-2.5 text-center">Cấm Chuông</th>
+                <th class="p-2.5 text-center">Cấm Chat</th>
+                <th class="p-2.5 text-center">Đuổi</th>
+              </tr>
+            </thead>
+            <tbody id="playerTableBody" class="divide-y divide-slate-800">
+              <tr><td colspan="5" class="p-4 text-center text-slate-500 italic">Đang tải dữ liệu thí sinh...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DANH SÁCH BẤM CHUÔNG & NHẬT KÝ CHAT REALTIME -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Thứ tự bấm chuông -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="font-bold text-sm text-slate-300 flex items-center gap-2">⏱️ Thứ Tự Bấm Chuông</h2>
+            <span id="buzzerCount" class="text-xs bg-amber-500/20 text-amber-400 font-bold px-2 py-0.5 rounded border border-amber-500/30">0</span>
+          </div>
+          <ul id="adminBuzzerList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <li class="text-slate-500 italic text-xs">Chưa có tín hiệu chuông nào...</li>
+          </ul>
+        </div>
+
+        <!-- Nhật ký câu trả lời -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
+          <h2 class="font-bold text-sm text-slate-300 mb-3 flex items-center gap-2">💬 Câu Trả Lời Trực Tuyến</h2>
+          <div id="adminAnswerStream" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <p class="text-slate-500 italic text-xs">Chưa có câu trả lời nào...</p>
+          </div>
+        </div>
+
+      </div>
+
     </div>
+  </template>
 
-    <!-- JAVASCRIPT CHO TOGGLE MENU -->
-    <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            
-            // Xử lý khi ở màn hình máy tính
-            if (window.innerWidth > 991) {
-                const mainContent = document.getElementById('main-content');
-                if (mainContent.style.marginLeft === '0px') {
-                    mainContent.style.marginLeft = '250px';
-                } else {
-                    mainContent.style.marginLeft = '0px';
-                }
-            } 
-            // Xử lý khi ở màn hình điện thoại/tablet
-            else {
-                document.getElementById('overlay').classList.toggle('active');
-            }
-        }
-    </script>
+  <!-- Container nhận giao diện sau khi đăng nhập -->
+  <div id="app"></div>
+
+  <!-- SCRIPT KẾT NỐI -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/admin.js"></script>
 </body>
 </html>
