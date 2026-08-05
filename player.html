@@ -21,54 +21,54 @@
       box-shadow: 0 4px 0 #991b1b, 0 5px 10px rgba(0,0,0,0.5);
     }
     .buzzer-disabled {
-      box-shadow: 0 6px 0 #475569 !important;
+      box-shadow: 0 6px 0 #334155 !important;
       transform: translateY(4px);
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-3 sm:p-6">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center justify-center p-4">
 
-  <!-- Modal Đăng Nhập Tên Thí Sinh -->
-  <div id="loginModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-amber-400/40 p-6 rounded-2xl max-w-md w-full shadow-2xl text-center">
-      <h2 class="text-2xl font-black text-amber-400 uppercase tracking-wider mb-2">🏆 Đăng Nhập Thí Sinh</h2>
-      <p class="text-xs text-slate-400 mb-6">Nhập họ tên của bạn để bước vào phòng thi Olympia</p>
+  <!-- 1. MODAL ĐĂNG NHẬP THÍ SINH -->
+  <div id="loginModal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-400/50 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl text-center">
+      <h2 class="text-2xl font-black text-amber-400 uppercase tracking-wider mb-2">🏆 ĐĂNG NHẬP THÍ SINH</h2>
+      <p class="text-xs text-slate-400 mb-6">Nhập tên của bạn để gia nhập phòng thi Olympia</p>
       
       <form onsubmit="handlePlayerLogin(event)" class="space-y-4">
         <input 
           type="text" 
           id="playerNameInput" 
-          placeholder="Nhập tên thí sinh..." 
+          placeholder="Nhập họ và tên thí sinh..." 
           required
           maxlength="20"
-          class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded-xl p-3 focus:outline-none focus:border-amber-400 text-center font-bold"
+          class="w-full bg-slate-950 border border-slate-700 text-slate-100 text-sm rounded-xl p-3.5 focus:outline-none focus:border-amber-400 text-center font-bold"
         />
-        <button type="submit" class="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-950 font-black text-sm py-3 rounded-xl shadow-lg transition transform active:scale-95 cursor-pointer">
+        <button type="submit" class="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-950 font-black text-sm py-3.5 rounded-xl shadow-lg transition active:scale-95 cursor-pointer">
           VÀO PHÒNG THI ➔
         </button>
       </form>
     </div>
   </div>
 
-  <!-- Màn Hình Chính Của Thí Sinh -->
-  <div id="app" class="w-full max-w-2xl flex flex-col items-center gap-4 hidden">
+  <!-- 2. MÀN HÌNH CHÍNH BẤM CHUÔNG & TRẢ LỜI -->
+  <div id="app" class="w-full max-w-lg flex flex-col items-center gap-5 hidden">
     
-    <!-- Top Bar: Thông tin Thí Sinh & Điểm Số -->
+    <!-- Top Bar: Thông tin Thí sinh & Điểm số -->
     <div class="w-full bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex items-center justify-between">
       <div>
-        <span class="text-[10px] text-slate-400 uppercase tracking-widest block">Thí Sinh</span>
-        <h2 id="displayPlayerName" class="text-lg font-black text-amber-400 truncate max-w-[180px]">---</h2>
+        <span class="text-[10px] text-slate-400 uppercase tracking-widest block font-bold">Thí Sinh</span>
+        <h2 id="displayPlayerName" class="text-lg font-black text-amber-400 truncate max-w-[160px]">---</h2>
       </div>
 
-      <!-- Khung Điểm Số Olympia -->
+      <!-- Khung Điểm Số -->
       <div class="flex flex-col items-center">
         <span class="text-[10px] text-amber-400/80 font-bold uppercase tracking-wider">Điểm Số</span>
-        <div class="bg-gradient-to-b from-blue-900 to-slate-950 border-2 border-amber-400 px-4 py-1 rounded-xl shadow-inner">
-          <span id="displayPlayerScore" class="text-2xl font-extrabold text-blue-400 font-mono">0</span>
+        <div class="bg-slate-950 border-2 border-amber-400/80 px-5 py-1 rounded-xl shadow-inner">
+          <span id="displayPlayerScore" class="text-2xl font-extrabold text-amber-400 font-mono">0</span>
         </div>
       </div>
 
-      <button onclick="playerLogout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 p-2 rounded-lg border border-slate-700 transition">
+      <button onclick="playerLogout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 px-3 py-2 rounded-lg border border-slate-700 transition font-bold">
         🚪 Thoát
       </button>
     </div>
@@ -79,30 +79,32 @@
     </div>
 
     <!-- NÚT BẤM CHUÔNG KHỔNG LỒ -->
-    <div class="my-4 flex flex-col items-center justify-center w-full">
+    <div class="my-2 flex flex-col items-center justify-center w-full">
       <button 
         id="buzzerBtn" 
         onclick="pressBuzzer()" 
         disabled 
-        class="buzzer-btn buzzer-disabled w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-gradient-to-b from-red-500 via-red-600 to-red-800 border-4 border-red-400 text-white font-black text-2xl sm:text-3xl tracking-wider flex flex-col items-center justify-center gap-2 cursor-not-allowed select-none opacity-60"
+        class="buzzer-btn buzzer-disabled w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-slate-800 border-4 border-slate-600 text-slate-500 font-black text-2xl sm:text-3xl tracking-wider flex flex-col items-center justify-center gap-2 cursor-not-allowed select-none opacity-60"
       >
-        <span class="text-4xl sm:text-5xl">🔔</span>
+        <span class="text-5xl">🔔</span>
         <span id="buzzerBtnText">KHÓA</span>
       </button>
     </div>
 
     <!-- KHUNG GỬI CÂU TRẢ LỜI -->
     <div class="w-full bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex flex-col gap-2">
-      <label for="answerInput" class="text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between">
-        <span>💬 Trả lời câu hỏi:</span>
-        <span id="chatStatus" class="text-amber-400"></span>
-      </label>
+      <div class="flex justify-between items-center">
+        <label for="answerInput" class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          💬 Trả lời câu hỏi:
+        </label>
+        <span id="chatStatus" class="text-xs font-bold text-amber-400"></span>
+      </div>
       <div class="flex gap-2">
         <input 
           type="text" 
           id="answerInput" 
-          placeholder="Nhập câu trả lời tại đây..." 
-          class="flex-1 bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-amber-400"
+          placeholder="Nhập câu trả lời..." 
+          class="flex-1 bg-slate-950 border border-slate-700 text-slate-100 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-amber-400"
           onkeypress="if(event.key === 'Enter') submitAnswer()"
         />
         <button 
@@ -117,7 +119,7 @@
 
   </div>
 
-  <!-- Script xử lý Realtime cho Thí Sinh -->
+  <!-- SCRIPT XỬ LÝ DỮ LIỆU LOGIC -->
   <script>
     let playerId = sessionStorage.getItem("olympia_player_id");
     let playerName = sessionStorage.getItem("olympia_player_name");
@@ -125,7 +127,8 @@
     let isMutedBuzzer = false;
     let isMutedChat = false;
 
-    const buzzerAudio = new Audio('sound/buzzer.mp3');
+    // Âm thanh bấm chuông tại máy thí sinh
+    const buzzerAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
     document.addEventListener("DOMContentLoaded", () => {
       initPlayerAuth();
@@ -159,21 +162,22 @@
       sessionStorage.setItem("olympia_player_id", playerId);
       sessionStorage.setItem("olympia_player_name", playerName);
 
-      // Đăng ký thông tin thí sinh lên Firebase Database
-      db.ref(`players/${playerId}`).set({
-        name: playerName,
-        score: 0,
-        joinedAt: Date.now(),
-        muteBuzzer: false,
-        muteChat: false,
-        kicked: false
-      });
+      if (typeof db !== 'undefined') {
+        db.ref(`players/${playerId}`).set({
+          name: playerName,
+          score: 0,
+          joinedAt: Date.now(),
+          muteBuzzer: false,
+          muteChat: false,
+          kicked: false
+        });
+      }
 
       initPlayerAuth();
     }
 
     function playerLogout() {
-      if (playerId) {
+      if (typeof db !== 'undefined' && playerId) {
         db.ref(`players/${playerId}`).remove();
       }
       sessionStorage.removeItem("olympia_player_id");
@@ -182,27 +186,30 @@
     }
 
     function startPlayerFirebase() {
-      // 1. Lắng nghe trạng thái Khóa/Mở Chuông từ Admin
+      if (typeof db === 'undefined') {
+        console.error("Chưa kết nối Firebase Database!");
+        return;
+      }
+
+      // Lắng nghe trạng thái Mở/Khóa chuông từ Admin
       db.ref('settings/locked').on('value', (snapshot) => {
         isLocked = snapshot.val() ?? true;
         updateBuzzerUI();
       });
 
-      // 2. Lắng nghe dữ liệu bản thân (Điểm số, Cấm chuông, Cấm chat, Kick)
+      // Lắng nghe thông tin thí sinh (Điểm số, cấm chuông, cấm chat)
       db.ref(`players/${playerId}`).on('value', (snapshot) => {
         if (!snapshot.exists()) return;
         const data = snapshot.val();
 
         if (data.kicked) {
-          alert("Bạn đã bị quản trị viên mời ra khỏi phòng thi!");
+          alert("Bạn đã bị Quản trị viên mời ra khỏi phòng thi!");
           playerLogout();
           return;
         }
 
-        // Cập nhật điểm số
         document.getElementById("displayPlayerScore").innerText = data.score !== undefined ? data.score : 0;
         
-        // Cập nhật trạng thái cấm
         isMutedBuzzer = !!data.muteBuzzer;
         isMutedChat = !!data.muteChat;
 
@@ -229,6 +236,8 @@
       const badge = document.getElementById("statusBadge");
       const btnText = document.getElementById("buzzerBtnText");
 
+      if (!btn || !badge || !btnText) return;
+
       if (isLocked || isMutedBuzzer) {
         btn.disabled = true;
         btn.className = "buzzer-btn buzzer-disabled w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-slate-800 border-4 border-slate-600 text-slate-500 font-black text-2xl sm:text-3xl tracking-wider flex flex-col items-center justify-center gap-2 cursor-not-allowed select-none opacity-60";
@@ -247,13 +256,11 @@
     }
 
     function pressBuzzer() {
-      if (isLocked || isMutedBuzzer) return;
+      if (isLocked || isMutedBuzzer || typeof db === 'undefined') return;
 
-      // Phát âm thanh bấm chuông tại máy thí sinh
       buzzerAudio.currentTime = 0;
-      buzzerAudio.play().catch(e => console.log(e));
+      buzzerAudio.play().catch(() => {});
 
-      // Gửi tín hiệu bấm chuông về Firebase
       db.ref(`buzzers/${playerId}`).set({
         name: playerName,
         timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -261,7 +268,7 @@
     }
 
     function submitAnswer() {
-      if (isMutedChat) return;
+      if (isMutedChat || typeof db === 'undefined') return;
 
       const input = document.getElementById("answerInput");
       const text = input ? input.value.trim() : "";
