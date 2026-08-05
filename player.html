@@ -3,160 +3,278 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vượt Chướng Ngại Vật - Lật Ảnh</title>
+  <title>Thí Sinh - Đường Lên Đỉnh Olympia</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase SDK (v8) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="js/firebase-config.js"></script>
+
   <style>
-    /* Hiệu ứng lật mở ô */
-    .tile-cover {
-      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-      transform-origin: center;
+    .buzzer-btn {
+      transition: all 0.1s ease;
+      box-shadow: 0 10px 0 #991b1b, 0 15px 25px rgba(0,0,0,0.5);
     }
-    .tile-open {
-      opacity: 0 !important;
-      transform: scale(0.5) rotate(15deg) !important;
-      pointer-events: none !important;
+    .buzzer-btn:active:not(:disabled) {
+      transform: translateY(6px);
+      box-shadow: 0 4px 0 #991b1b, 0 5px 10px rgba(0,0,0,0.5);
+    }
+    .buzzer-disabled {
+      box-shadow: 0 6px 0 #475569 !important;
+      transform: translateY(4px);
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 font-sans flex flex-col items-center justify-center">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-3 sm:p-6">
 
-  <!-- Header -->
-  <div class="w-full max-w-4xl flex justify-between items-center mb-4 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg">
-    <div>
-      <h1 class="text-xl sm:text-2xl font-black text-amber-400 uppercase tracking-wider">
-        🧩 Vượt Chướng Ngại Vật
-      </h1>
-      <p class="text-xs text-slate-400 mt-1">Click trực tiếp vào ô số 1, 2, 3, 4, 5 để lật ảnh</p>
+  <!-- Modal Đăng Nhập Tên Thí Sinh -->
+  <div id="loginModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-400/40 p-6 rounded-2xl max-w-md w-full shadow-2xl text-center">
+      <h2 class="text-2xl font-black text-amber-400 uppercase tracking-wider mb-2">🏆 Đăng Nhập Thí Sinh</h2>
+      <p class="text-xs text-slate-400 mb-6">Nhập họ tên của bạn để bước vào phòng thi Olympia</p>
+      
+      <form onsubmit="handlePlayerLogin(event)" class="space-y-4">
+        <input 
+          type="text" 
+          id="playerNameInput" 
+          placeholder="Nhập tên thí sinh..." 
+          required
+          maxlength="20"
+          class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded-xl p-3 focus:outline-none focus:border-amber-400 text-center font-bold"
+        />
+        <button type="submit" class="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-950 font-black text-sm py-3 rounded-xl shadow-lg transition transform active:scale-95 cursor-pointer">
+          VÀO PHÒNG THI ➔
+        </button>
+      </form>
     </div>
-    <a href="index.html" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg border border-slate-700 transition font-bold">
-      ⬅️ Trang chính
-    </a>
   </div>
 
-  <!-- Khung Bức Ảnh & 5 Miếng Ghép -->
-  <div class="w-full max-w-4xl relative aspect-video bg-slate-900 rounded-2xl border-4 border-amber-400/80 shadow-2xl overflow-hidden select-none">
+  <!-- Màn Hình Chính Của Thí Sinh -->
+  <div id="app" class="w-full max-w-2xl flex flex-col items-center gap-4 hidden">
     
-    <!-- Bức ảnh chướng ngại vật phía dưới -->
-    <img 
-      id="obstacleImg" 
-      src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop" 
-      alt="Chướng ngại vật" 
-      class="w-full h-full object-cover relative z-0"
-    />
-
-    <!-- Lớp 4 Ô góc (1, 2, 3, 4) -->
-    <div class="absolute inset-0 p-2 grid grid-cols-2 grid-rows-2 gap-2 z-10">
-      <div id="tile-1" onclick="toggleTile(1)" class="tile-cover bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border-2 border-amber-400/80 rounded-xl flex items-center justify-center cursor-pointer shadow-xl hover:brightness-125 active:scale-95">
-        <span class="text-4xl sm:text-6xl font-black text-amber-400 font-mono pointer-events-none">1</span>
+    <!-- Top Bar: Thông tin Thí Sinh & Điểm Số -->
+    <div class="w-full bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex items-center justify-between">
+      <div>
+        <span class="text-[10px] text-slate-400 uppercase tracking-widest block">Thí Sinh</span>
+        <h2 id="displayPlayerName" class="text-lg font-black text-amber-400 truncate max-w-[180px]">---</h2>
       </div>
 
-      <div id="tile-2" onclick="toggleTile(2)" class="tile-cover bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border-2 border-amber-400/80 rounded-xl flex items-center justify-center cursor-pointer shadow-xl hover:brightness-125 active:scale-95">
-        <span class="text-4xl sm:text-6xl font-black text-amber-400 font-mono pointer-events-none">2</span>
+      <!-- Khung Điểm Số Olympia -->
+      <div class="flex flex-col items-center">
+        <span class="text-[10px] text-amber-400/80 font-bold uppercase tracking-wider">Điểm Số</span>
+        <div class="bg-gradient-to-b from-blue-900 to-slate-950 border-2 border-amber-400 px-4 py-1 rounded-xl shadow-inner">
+          <span id="displayPlayerScore" class="text-2xl font-extrabold text-blue-400 font-mono">0</span>
+        </div>
       </div>
 
-      <div id="tile-3" onclick="toggleTile(3)" class="tile-cover bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border-2 border-amber-400/80 rounded-xl flex items-center justify-center cursor-pointer shadow-xl hover:brightness-125 active:scale-95">
-        <span class="text-4xl sm:text-6xl font-black text-amber-400 font-mono pointer-events-none">3</span>
-      </div>
-
-      <div id="tile-4" onclick="toggleTile(4)" class="tile-cover bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border-2 border-amber-400/80 rounded-xl flex items-center justify-center cursor-pointer shadow-xl hover:brightness-125 active:scale-95">
-        <span class="text-4xl sm:text-6xl font-black text-amber-400 font-mono pointer-events-none">4</span>
-      </div>
-    </div>
-
-    <!-- Ô số 5 Trung tâm -->
-    <div id="tile-5" onclick="toggleTile(5)" class="tile-cover absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/3 h-1/3 z-20 bg-gradient-to-br from-amber-500 via-yellow-400 to-amber-600 border-4 border-slate-950 rounded-2xl flex items-center justify-center cursor-pointer shadow-2xl hover:scale-105 active:scale-95">
-      <span class="text-4xl sm:text-6xl font-black text-slate-950 font-mono pointer-events-none">5</span>
-    </div>
-
-  </div>
-
-  <!-- Thanh Điều Khiển -->
-  <div class="w-full max-w-4xl mt-4 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-3">
-    <div class="flex-1 w-full flex items-center gap-2">
-      <input 
-        type="text" 
-        id="imgUrlInput" 
-        placeholder="Nhập URL ảnh mới..." 
-        class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-amber-400"
-      />
-      <button onclick="changeImageByUrl()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-lg whitespace-nowrap transition cursor-pointer">
-        Đổi Ảnh
+      <button onclick="playerLogout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 p-2 rounded-lg border border-slate-700 transition">
+        🚪 Thoát
       </button>
-      <label class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-3 py-2.5 rounded-lg border border-slate-700 cursor-pointer whitespace-nowrap transition">
-        📁 Tải Ảnh
-        <input type="file" accept="image/*" class="hidden" onchange="uploadLocalImage(event)" />
+    </div>
+
+    <!-- Trạng Thái Chuông -->
+    <div id="statusBadge" class="text-xs font-bold px-4 py-1.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+      🔒 CHUÔNG ĐANG KHÓA
+    </div>
+
+    <!-- NÚT BẤM CHUÔNG KHỔNG LỒ -->
+    <div class="my-4 flex flex-col items-center justify-center w-full">
+      <button 
+        id="buzzerBtn" 
+        onclick="pressBuzzer()" 
+        disabled 
+        class="buzzer-btn buzzer-disabled w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-gradient-to-b from-red-500 via-red-600 to-red-800 border-4 border-red-400 text-white font-black text-2xl sm:text-3xl tracking-wider flex flex-col items-center justify-center gap-2 cursor-not-allowed select-none opacity-60"
+      >
+        <span class="text-4xl sm:text-5xl">🔔</span>
+        <span id="buzzerBtnText">KHÓA</span>
+      </button>
+    </div>
+
+    <!-- KHUNG GỬI CÂU TRẢ LỜI -->
+    <div class="w-full bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex flex-col gap-2">
+      <label for="answerInput" class="text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between">
+        <span>💬 Trả lời câu hỏi:</span>
+        <span id="chatStatus" class="text-amber-400"></span>
       </label>
+      <div class="flex gap-2">
+        <input 
+          type="text" 
+          id="answerInput" 
+          placeholder="Nhập câu trả lời tại đây..." 
+          class="flex-1 bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-amber-400"
+          onkeypress="if(event.key === 'Enter') submitAnswer()"
+        />
+        <button 
+          id="sendAnswerBtn"
+          onclick="submitAnswer()" 
+          class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm px-5 py-3 rounded-xl shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap"
+        >
+          GỬI ➔
+        </button>
+      </div>
     </div>
 
-    <div class="flex items-center gap-2 w-full md:w-auto justify-end">
-      <button onclick="resetAllTiles()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs px-4 py-2.5 rounded-lg border border-slate-700 transition cursor-pointer">
-        🔒 Đóng Tất Cả
-      </button>
-      <button onclick="openAllTiles()" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-bold text-xs px-4 py-2.5 rounded-lg border border-emerald-500/40 transition cursor-pointer">
-        🔓 Mở Tất Cả
-      </button>
-    </div>
   </div>
 
-  <!-- Script xử lý trực tiếp -->
+  <!-- Script xử lý Realtime cho Thí Sinh -->
   <script>
-    const tileStates = { 1: false, 2: false, 3: false, 4: false, 5: false };
+    let playerId = sessionStorage.getItem("olympia_player_id");
+    let playerName = sessionStorage.getItem("olympia_player_name");
+    let isLocked = true;
+    let isMutedBuzzer = false;
+    let isMutedChat = false;
 
-    function toggleTile(num) {
-      tileStates[num] = !tileStates[num];
-      const el = document.getElementById(`tile-${num}`);
-      if (!el) return;
+    const buzzerAudio = new Audio('sound/buzzer.mp3');
 
-      if (tileStates[num]) {
-        el.classList.add('tile-open');
+    document.addEventListener("DOMContentLoaded", () => {
+      initPlayerAuth();
+    });
+
+    function initPlayerAuth() {
+      const modal = document.getElementById("loginModal");
+      const app = document.getElementById("app");
+
+      if (playerId && playerName) {
+        if (modal) modal.classList.add("hidden");
+        if (app) app.classList.remove("hidden");
+        document.getElementById("displayPlayerName").innerText = playerName;
+        startPlayerFirebase();
       } else {
-        el.classList.remove('tile-open');
+        if (modal) modal.classList.remove("hidden");
+        if (app) app.classList.add("hidden");
       }
     }
 
-    function openAllTiles() {
-      for (let i = 1; i <= 5; i++) {
-        tileStates[i] = true;
-        const el = document.getElementById(`tile-${i}`);
-        if (el) el.classList.add('tile-open');
-      }
+    function handlePlayerLogin(e) {
+      e.preventDefault();
+      const input = document.getElementById("playerNameInput");
+      const name = input ? input.value.trim() : "";
+      
+      if (!name) return;
+
+      playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+      playerName = name;
+
+      sessionStorage.setItem("olympia_player_id", playerId);
+      sessionStorage.setItem("olympia_player_name", playerName);
+
+      // Đăng ký thông tin thí sinh lên Firebase Database
+      db.ref(`players/${playerId}`).set({
+        name: playerName,
+        score: 0,
+        joinedAt: Date.now(),
+        muteBuzzer: false,
+        muteChat: false,
+        kicked: false
+      });
+
+      initPlayerAuth();
     }
 
-    function resetAllTiles() {
-      for (let i = 1; i <= 5; i++) {
-        tileStates[i] = false;
-        const el = document.getElementById(`tile-${i}`);
-        if (el) el.classList.remove('tile-open');
+    function playerLogout() {
+      if (playerId) {
+        db.ref(`players/${playerId}`).remove();
       }
+      sessionStorage.removeItem("olympia_player_id");
+      sessionStorage.removeItem("olympia_player_name");
+      window.location.reload();
     }
 
-    function changeImageByUrl() {
-      const input = document.getElementById('imgUrlInput');
-      const val = input ? input.value.trim() : '';
-      if (!val) {
-        alert('Vui lòng nhập đường dẫn URL ảnh!');
-        return;
-      }
-      const img = document.getElementById('obstacleImg');
-      if (img) {
-        img.src = val;
-        resetAllTiles();
-      }
-    }
+    function startPlayerFirebase() {
+      // 1. Lắng nghe trạng thái Khóa/Mở Chuông từ Admin
+      db.ref('settings/locked').on('value', (snapshot) => {
+        isLocked = snapshot.val() ?? true;
+        updateBuzzerUI();
+      });
 
-    function uploadLocalImage(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+      // 2. Lắng nghe dữ liệu bản thân (Điểm số, Cấm chuông, Cấm chat, Kick)
+      db.ref(`players/${playerId}`).on('value', (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.val();
 
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const img = document.getElementById('obstacleImg');
-        if (img) {
-          img.src = e.target.result;
-          resetAllTiles();
+        if (data.kicked) {
+          alert("Bạn đã bị quản trị viên mời ra khỏi phòng thi!");
+          playerLogout();
+          return;
         }
-      };
-      reader.readAsDataURL(file);
+
+        // Cập nhật điểm số
+        document.getElementById("displayPlayerScore").innerText = data.score !== undefined ? data.score : 0;
+        
+        // Cập nhật trạng thái cấm
+        isMutedBuzzer = !!data.muteBuzzer;
+        isMutedChat = !!data.muteChat;
+
+        const chatInput = document.getElementById("answerInput");
+        const sendBtn = document.getElementById("sendAnswerBtn");
+        const chatStatus = document.getElementById("chatStatus");
+
+        if (isMutedChat) {
+          if (chatInput) chatInput.disabled = true;
+          if (sendBtn) sendBtn.disabled = true;
+          if (chatStatus) chatStatus.innerText = "(Bị cấm chat)";
+        } else {
+          if (chatInput) chatInput.disabled = false;
+          if (sendBtn) sendBtn.disabled = false;
+          if (chatStatus) chatStatus.innerText = "";
+        }
+
+        updateBuzzerUI();
+      });
+    }
+
+    function updateBuzzerUI() {
+      const btn = document.getElementById("buzzerBtn");
+      const badge = document.getElementById("statusBadge");
+      const btnText = document.getElementById("buzzerBtnText");
+
+      if (isLocked || isMutedBuzzer) {
+        btn.disabled = true;
+        btn.className = "buzzer-btn buzzer-disabled w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-slate-800 border-4 border-slate-600 text-slate-500 font-black text-2xl sm:text-3xl tracking-wider flex flex-col items-center justify-center gap-2 cursor-not-allowed select-none opacity-60";
+        btnText.innerText = isMutedBuzzer ? "BỊ CẤM" : "KHÓA";
+        
+        badge.innerText = isMutedBuzzer ? "🔇 BẠN ĐÃ BỊ CẤM CHUÔNG" : "🔒 CHUÔNG ĐANG KHÓA";
+        badge.className = "text-xs font-bold px-4 py-1.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30";
+      } else {
+        btn.disabled = false;
+        btn.className = "buzzer-btn w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-gradient-to-b from-red-500 via-red-600 to-red-800 border-4 border-red-400 text-white font-black text-2xl sm:text-3xl tracking-wider flex flex-col items-center justify-center gap-2 cursor-pointer select-none animate-pulse hover:brightness-110 active:scale-95";
+        btnText.innerText = "BẤM CHUÔNG!";
+
+        badge.innerText = "🔓 CHUÔNG ĐANG MỞ - SẴN SÀNG!";
+        badge.className = "text-xs font-bold px-4 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-bounce";
+      }
+    }
+
+    function pressBuzzer() {
+      if (isLocked || isMutedBuzzer) return;
+
+      // Phát âm thanh bấm chuông tại máy thí sinh
+      buzzerAudio.currentTime = 0;
+      buzzerAudio.play().catch(e => console.log(e));
+
+      // Gửi tín hiệu bấm chuông về Firebase
+      db.ref(`buzzers/${playerId}`).set({
+        name: playerName,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+    }
+
+    function submitAnswer() {
+      if (isMutedChat) return;
+
+      const input = document.getElementById("answerInput");
+      const text = input ? input.value.trim() : "";
+      if (!text) return;
+
+      db.ref("answers").push({
+        playerId: playerId,
+        name: playerName,
+        text: text,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      input.value = "";
     }
   </script>
 </body>
